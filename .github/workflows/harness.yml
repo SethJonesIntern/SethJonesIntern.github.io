@@ -1,0 +1,73 @@
+name: Harness
+
+# Validates the spec-harness plugin itself. The information barriers are the
+# product here, so a regression in them is a silent loss of every guarantee the
+# workflow claims to provide.
+
+on:
+  push:
+    branches: [main]
+    paths: ["plugins/**", ".claude-plugin/**", ".github/workflows/harness.yml"]
+  pull_request:
+    paths: ["plugins/**", ".claude-plugin/**", ".github/workflows/harness.yml"]
+
+jobs:
+  boundaries:
+    name: Boundary enforcement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Role isolation suite
+        run: python plugins/spec-harness/tests/test_enforce_boundaries.py
+
+      - name: Auditor catches known-bad tests
+        run: |
+          set -e
+          tmp=$(mktemp -d)
+          cat > "$tmp/test_bad.py" <<'EOF'
+          from mymod import parse
+
+          def test_no_assertion():
+              parse("a,b")
+
+          def test_self_referential():
+              assert parse("a,b") == parse("a,b")
+          EOF
+          if python plugins/spec-harness/tools/test_audit.py "$tmp/test_bad.py"; then
+            echo "::error::auditor passed a file it must flag"
+            exit 1
+          fi
+          echo "Auditor correctly flagged the known-bad fixture."
+
+      - name: Auditor accepts a legitimate test
+        run: |
+          set -e
+          tmp=$(mktemp -d)
+          cat > "$tmp/test_good.py" <<'EOF'
+          import pytest
+          from mymod import parse
+
+          def test_parse_splits_on_comma():
+              assert parse("a,b") == ["a", "b"]
+
+          def test_parse_rejects_unterminated_quote():
+              with pytest.raises(ValueError, match="unterminated quote"):
+                  parse('"a')
+          EOF
+          python plugins/spec-harness/tools/test_audit.py "$tmp/test_good.py"
+
+  manifest:
+    name: Plugin manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate plugin structure
+        run: npx --yes @anthropic-ai/claude-code@latest plugin validate ./plugins/spec-harness

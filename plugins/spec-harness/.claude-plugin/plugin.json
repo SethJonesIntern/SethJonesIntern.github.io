@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "spec-harness",
+  "displayName": "Spec Harness",
+  "version": "0.1.0",
+  "description": "Contract-first development harness. A spec is the only shared artifact; implementation and tests are derived from it independently by agents that cannot see each other's work.",
+  "author": {
+    "name": "Seth Jones",
+    "email": "seth.jones@ucf.edu"
+  },
+  "license": "MIT",
+  "keywords": ["testing", "tdd", "spec", "quality", "python"],
+  "hooks": "./hooks/hooks.json"
+}

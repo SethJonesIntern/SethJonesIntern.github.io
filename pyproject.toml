@@ -1,0 +1,50 @@
+# Tool configuration only — no build-system yet, since this repo has no
+# installable package. When one lands, add [project] + [build-system] and switch
+# the CI install steps to `pip install -e ".[dev]"`.
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["node_modules", ".venv", "dist"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # import sorting
+    "B",         # bugbear
+    "UP",        # pyupgrade
+    "SIM",       # simplify
+    "RUF",       # ruff-specific
+    "PT",        # pytest style
+    "ARG",       # unused arguments
+    "PTH",       # prefer pathlib
+]
+ignore = [
+    "E501",      # line length is enforced by the formatter
+    "PTH123",    # open() is fine in single-purpose scripts
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Hook scripts run as standalone subprocesses under an unknown interpreter.
+"plugins/spec-harness/scripts/*.py" = ["PTH"]
+"plugins/spec-harness/tools/*.py" = ["PTH"]
+"plugins/spec-harness/tests/*.py" = ["PTH"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+exclude = ["node_modules", "dist"]
+
+[[tool.mypy.overrides]]
+# Standalone scripts, not an importable package.
+module = ["enforce_boundaries", "test_audit", "test_enforce_boundaries"]
+ignore_errors = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "plugins/spec-harness/tests"]
+addopts = "-q --strict-markers --strict-config"

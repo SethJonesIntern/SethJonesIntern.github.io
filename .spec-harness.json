@@ -1,0 +1,26 @@
+{
+  "spec_globs": ["specs/**"],
+  "source_globs": ["src/**", "app/**", "lib/**"],
+  "test_globs": [
+    "tests/**",
+    "**/__tests__/**",
+    "**/test_*.py",
+    "**/*_test.py",
+    "**/conftest.py",
+    "**/*.test.[jt]s",
+    "**/*.test.[jt]sx",
+    "**/*.spec.[jt]s",
+    "**/*.spec.[jt]sx"
+  ],
+  "shared_globs": [
+    "pyproject.toml",
+    "package.json",
+    "tsconfig.json",
+    "astro.config.mjs",
+    "README.md",
+    "CLAUDE.md",
+    ".spec-harness.json",
+    "docs/**"
+  ],
+  "strict_read_isolation": true
+}
