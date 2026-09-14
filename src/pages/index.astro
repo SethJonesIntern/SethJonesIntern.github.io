@@ -1,11 +1,93 @@
 ---
+import { Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import gradPhoto from '../assets/seth-ucf-grad.jpg';
 ---
 
-<BaseLayout title="Seth Jones">
-  <h1>Seth Jones</h1>
-  <p>
-    PhD student in Computer Science at the University of Central Florida, researching software
-    engineering for AI at SAIL@UCF.
-  </p>
+<BaseLayout title="Seth Jones" bodyClass="home">
+  <section class="hero">
+    <Image
+      class="hero__photo"
+      src={gradPhoto}
+      alt="Seth Jones in cap and gown at his UCF graduation"
+      width={220}
+      densities={[1, 2]}
+      format="webp"
+      quality={72}
+      loading="eager"
+      decoding="async"
+    />
+    <div class="hero__body">
+      <h1>Seth Jones</h1>
+      <p class="hero__lead">I’m a Computer Science PhD student at UCF, studying software engineering for AI — right now, how you test agentic systems that don’t behave the same way twice.</p>
+      <p>I started at SAIL@UCF in August 2026, working with Aashish Yadavally, and I’m co-authoring a survey on testing non-determinism in agentic applications. I finished my BS in Computer Science at UCF the same month, and I’ve been a teaching assistant since 2025 for Data Structures & Algorithms, Senior Design, and Cryptography.</p>
+      <ul class="hero__links">
+        <li><a class="hero__link" href="/about/">About me</a></li>
+        <li><a class="hero__link" href="/research/">Research</a></li>
+        <li><a class="hero__link" href="/projects/">Projects</a></li>
+        <li><a class="hero__link" href="/contact/">Get in touch</a></li>
+      </ul>
+    </div>
+  </section>
 </BaseLayout>
+
+<style>
+  .hero {
+    /* Component-local, not a global token: 220px at 1x. Must stay in sync with
+       the <Image> width prop, or the reserved box no longer matches the asset. */
+    --hero-photo-width: 13.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  /* Height is deliberately unset: the global `img { height: auto }` derives it
+     from the intrinsic width/height attributes, which is what avoids CLS. */
+  .hero__photo {
+    width: 100%;
+    max-width: var(--hero-photo-width);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* The global margin reset zeroes h1/p/ul, and `.prose > * + *` only reaches
+     direct children of <main>, so the stack needs its own rhythm. */
+  .hero__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .hero__lead {
+    font-size: var(--text-lg);
+    line-height: var(--leading-snug);
+    color: var(--color-text);
+  }
+
+  .hero__links {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2xs) var(--space-md);
+  }
+
+  .hero__link {
+    font-weight: var(--weight-medium);
+  }
+
+  /* Class-level specificity so the global `a:visited` cannot recolour the hero
+     routes once they have been followed. */
+  .hero__link:visited {
+    color: var(--color-link);
+  }
+
+  @media (min-width: 40em) {
+    .hero {
+      display: grid;
+      grid-template-columns: var(--hero-photo-width) 1fr;
+      align-items: start;
+      gap: var(--space-md);
+    }
+  }
+</style>
