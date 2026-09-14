@@ -283,6 +283,7 @@ overridden.
 | `--focus-ring-offset` | `3px` |
 | `--z-header` | `10` |
 | `--z-skip-link` | `100` |
+| `--color-transparent` | `transparent` |
 | `--color-white` | `#ffffff` |
 | `--color-ink-50` | `#faf8f5` |
 | `--color-ink-100` | `#f3efe8` |
@@ -331,6 +332,7 @@ colour. Light values live in `:root`; dark values live in the dark block.
 | `--color-code-bg` | `var(--color-ink-100)` | `var(--color-ink-800)` |
 | `--color-selection-bg` | `var(--color-teal-100)` | `var(--color-teal-900)` |
 | `--color-selection-text` | `var(--color-ink-900)` | `var(--color-ink-50)` |
+| `--color-mark-plate` | `var(--color-transparent)` | `var(--color-ink-50)` |
 | `--shadow-sm` | `0 1px 2px rgba(28, 25, 20, 0.06), 0 1px 3px rgba(28, 25, 20, 0.08)` | `0 1px 2px rgba(0, 0, 0, 0.5)` |
 | `--shadow-md` | `0 2px 4px rgba(28, 25, 20, 0.06), 0 8px 24px rgba(28, 25, 20, 0.1)` | `0 8px 24px rgba(0, 0, 0, 0.6)` |
 
@@ -344,12 +346,12 @@ colour. Light values live in `:root`; dark values live in the dark block.
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* the 21 semantic tokens above, re-declared with their dark values */
+    /* the 22 semantic tokens above, re-declared with their dark values */
   }
 }
 ```
 
-Only the 21 semantic tokens appear inside the dark block. Re-declaring the semantic *mapping* in
+Only the 22 semantic tokens appear inside the dark block. Re-declaring the semantic *mapping* in
 that one media block is required and is not a violation of "tokens defined once" — the primitive
 values and the token names each exist in exactly one place. There is no `data-theme` attribute, no
 theme toggle, and no JavaScript colour-scheme handling in this issue.
@@ -443,7 +445,7 @@ says "raw"; Astro HTML-escapes interpolated values, so raw bytes may contain ent
 | 27 | built output | no `<script>` element in any emitted HTML, and `dist/` contains no `.js` asset | zero client JS |
 | 28 | built output | `dist/index.html` has exactly one stylesheet path — a single `<link rel="stylesheet">` and no `<style>` element — and no element carries an inline `style=` attribute; following that `href` (an emitted file under `dist/_astro/*.css`) yields a stylesheet whose text contains the `--color-` token declarations, e.g. `--color-bg:` | the bundle is ~7.3 kB, above Astro's inline threshold, so it is emitted as a linked stylesheet and `dist/index.html` itself contains **zero** occurrences of `--color-`. Do not assert `--color-` against the HTML; resolve the link and assert against the CSS file |
 | 29 | `src/pages/index.astro` source | imports `../layouts/BaseLayout.astro` and its root element is `<BaseLayout>` | "applied by every page" — currently one page |
-| 30 | `src/styles/tokens.css` source | every token name listed in Public API appears as a declaration; the 21 semantic names appear exactly twice (light `:root`, dark media block) and every primitive name appears exactly once as a declaration | grep-level check |
+| 30 | `src/styles/tokens.css` source | every token name listed in Public API appears as a declaration; the 22 semantic names appear exactly twice (light `:root`, dark media block) and every primitive name appears exactly once as a declaration | grep-level check |
 | 31 | any `src/components/*.astro`, `src/layouts/*.astro`, `src/pages/*.astro` source | no hex colour literal (`/#[0-9a-fA-F]{3,8}\b/`), no `rgb(`/`hsl(`, no `px` length except `1px`/`2px` borders already tokenised — i.e. colour and spacing only via `var(--…)` | tokens used, not duplicated |
 | 32 | `src/styles/global.css` source | contains no hex colour literal and no `rgb(`/`rgba(`/`hsl(` — all colour via `var(--color-…)` | the only raw `rgba()` in the project is inside the two shadow tokens in `tokens.css` |
 | 33 | viewport 400px wide | `--layout-gutter` computes to `18px` (`0.5rem + 2.5vw` = 8px + 10px, inside the clamp range), leaving a 364px content box; nav wraps to multiple rows; `document.documentElement.scrollWidth <= 400` | no horizontal scroll |
