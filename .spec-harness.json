@@ -1,6 +1,12 @@
 {
-  "spec_globs": ["specs/**"],
-  "source_globs": ["src/**", "app/**", "lib/**"],
+  "spec_globs": [
+    "specs/**"
+  ],
+  "source_globs": [
+    "src/**",
+    "app/**",
+    "lib/**"
+  ],
   "test_globs": [
     "tests/**",
     "**/__tests__/**",
@@ -22,5 +28,6 @@
     ".spec-harness.json",
     "docs/**"
   ],
-  "strict_read_isolation": true
+  "strict_read_isolation": true,
+  "adjudication": "off"
 }
