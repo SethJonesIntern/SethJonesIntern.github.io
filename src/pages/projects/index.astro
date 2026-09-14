@@ -1,6 +1,8 @@
 ---
 import { getCollection, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { GITHUB_PROFILE_URL, selectShowcaseRepos } from '../../lib/github';
+import { fetchShowcaseRepos } from '../../lib/github-fetch';
 import { formatStack, projectHref, sortProjects, statusLabel } from '../../lib/projects';
 
 // Space, U+00B7 MIDDLE DOT, space — matches TITLE_SEPARATOR and formatStack.
@@ -23,6 +25,16 @@ const projects = sortProjects(
     entry,
   })),
 );
+
+// One unauthenticated request at build time. fetchShowcaseRepos absorbs every
+// failure, so there is nothing to catch here: a bad response just leaves
+// `repos` empty and the section falls back to a single paragraph.
+const { ok, repos, reason } = await fetchShowcaseRepos();
+const showcase = selectShowcaseRepos(repos);
+
+if (!ok) {
+  console.warn(`projects: GitHub showcase unavailable — ${reason ?? 'unknown reason'}`);
+}
 ---
 
 <BaseLayout
@@ -44,6 +56,23 @@ const projects = sortProjects(
           </article>
         ))}
       </div>
+    )
+  }
+  <h2>From GitHub</h2>
+  <p>This list is read from my public GitHub account once, when the site is deployed, and ordered by stars and then by most recent push.</p>
+  {
+    showcase.length === 0 ? (
+      <p>Live repository data is not available right now. My work is on <a href={GITHUB_PROFILE_URL} rel="noopener">GitHub</a>.</p>
+    ) : (
+      <ul class="repo-list">
+        {showcase.map((repo) => (
+          <li class="repo-card">
+            <h3><a href={repo.url} rel="noopener">{repo.name}</a></h3>
+            {repo.meta !== '' && <p class="repo-card__meta">{repo.meta}</p>}
+            {repo.description && <p>{repo.description}</p>}
+          </li>
+        ))}
+      </ul>
     )
   }
 </BaseLayout>
@@ -86,6 +115,51 @@ const projects = sortProjects(
   }
 
   .project-card__meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  /* Mirrors the .project-card treatment; a list because the repos are a plain
+     enumeration rather than standalone articles with their own pages. */
+  .repo-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .repo-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    padding: var(--space-md);
+    background: var(--color-surface);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* The global h3 size is tuned for a section subheading, not a card title. */
+  .repo-card h3 {
+    font-size: var(--text-lg);
+  }
+
+  .repo-card h3 a {
+    text-decoration: none;
+  }
+
+  /* Class-level specificity so the global `a:visited` cannot recolour a card
+     title once the repository has been opened. */
+  .repo-card h3 a:visited {
+    color: var(--color-link);
+  }
+
+  .repo-card h3 a:hover {
+    color: var(--color-link-hover);
+  }
+
+  .repo-card__meta {
     font-size: var(--text-sm);
     color: var(--color-text-muted);
   }
