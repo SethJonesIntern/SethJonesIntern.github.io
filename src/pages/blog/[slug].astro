@@ -1,0 +1,95 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { assignSlugs, parsePostDate, publishedPosts, tagHref, tagSlug } from '../../lib/posts';
+
+export interface Props {
+  entry: CollectionEntry<'blog'>;
+}
+
+export async function getStaticPaths() {
+  const entries = await getCollection('blog');
+  // Slugs are derived from every entry, drafts included, so that publishing a
+  // draft can never renumber another post's URL.
+  const slugs = assignSlugs(entries.map((entry) => ({ id: entry.id, title: entry.data.title })));
+  // Paths come from published posts only, so a draft has no page even by direct URL.
+  return publishedPosts(entries.map((entry) => ({ draft: entry.data.draft, entry }))).map(
+    ({ entry }) => ({ params: { slug: slugs[entry.id] }, props: { entry } }),
+  );
+}
+
+// Explicit locale and UTC: the printed date must match the frontmatter string
+// on every host, whatever the build machine's timezone is.
+function formatDate(date: string): string {
+  const time = parsePostDate(date);
+  if (time === null) return date;
+  return new Date(time).toLocaleDateString('en-US', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+const { entry } = Astro.props;
+const { data } = entry;
+const { Content } = await render(entry);
+
+// A tag that slugifies to '' has no page, so it gets no link rather than a throw.
+const tagLinks = data.tags
+  .map((tag) => ({ label: tag, slug: tagSlug(tag) }))
+  .filter((tag) => tag.slug !== '');
+---
+
+<BaseLayout title={data.title} description={data.description}>
+  <h1>{data.title}</h1>
+  <p class="post-meta">
+    <time datetime={data.date}>{formatDate(data.date)}</time>
+  </p>
+  {
+    tagLinks.length > 0 && (
+      <ul class="post-tags">
+        {tagLinks.map((tag) => (
+          <li>
+            <a class="tag-link" href={tagHref(tag.slug)}>{tag.label}</a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  <Content />
+</BaseLayout>
+
+<style>
+  .post-meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .post-tags {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3xs) var(--space-2xs);
+  }
+
+  .tag-link {
+    display: inline-block;
+    padding: 0 var(--space-2xs);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-sm);
+    text-decoration: none;
+  }
+
+  /* Class-level specificity so the global `a:visited` cannot recolour a tag
+     pill once its page has been read. */
+  .tag-link:visited {
+    color: var(--color-link);
+  }
+
+  .tag-link:hover {
+    color: var(--color-link-hover);
+  }
+</style>
