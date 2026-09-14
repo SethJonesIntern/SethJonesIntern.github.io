@@ -1,0 +1,170 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  assignSlugs,
+  parsePostDate,
+  postHref,
+  publishedPosts,
+  sortPostsByDate,
+  tagCounts,
+  tagHref,
+  tagSlug,
+} from '../../lib/posts';
+
+// Explicit locale and UTC: the printed date must match the frontmatter string
+// on every host, whatever the build machine's timezone is.
+function formatDate(date: string): string {
+  const time = parsePostDate(date);
+  if (time === null) return date;
+  return new Date(time).toLocaleDateString('en-US', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+const entries = await getCollection('blog');
+
+// Slugs are derived from every entry, drafts included, so that publishing a
+// draft can never renumber another post's URL.
+const slugs = assignSlugs(entries.map((entry) => ({ id: entry.id, title: entry.data.title })));
+
+// getCollection nests frontmatter under `data`, but the pure helpers read their
+// keys off the top level, so project them and carry the slug alongside.
+const published = publishedPosts(
+  entries.map((entry) => ({
+    id: entry.id,
+    title: entry.data.title,
+    date: entry.data.date,
+    description: entry.data.description,
+    tags: entry.data.tags,
+    draft: entry.data.draft,
+    slug: slugs[entry.id],
+    // A tag that slugifies to '' has no page, so it gets no link rather than a throw.
+    tagLinks: entry.data.tags
+      .map((tag) => ({ label: tag, slug: tagSlug(tag) }))
+      .filter((tag) => tag.slug !== ''),
+  })),
+);
+
+const posts = sortPostsByDate(published);
+const tags = tagCounts(published);
+---
+
+<BaseLayout
+  title="Blog"
+  description="Notes from Seth Jones on software engineering for AI, testing, and building things."
+>
+  <h1>Blog</h1>
+  <p>Notes on what I am building and what I am reading — testing agentic systems, the process I use to keep a side project honest, and the occasional detour into how this site works.</p>
+  {
+    posts.length === 0 ? (
+      <p>No posts are published here yet.</p>
+    ) : (
+      <>
+        {tags.length > 0 && (
+          <nav class="tag-cloud" aria-label="Post tags">
+            <ul class="tag-cloud__list">
+              {tags.map((tag) => (
+                <li>
+                  <a class="tag-link" href={tagHref(tag.slug)}>{tag.label} ({tag.count})</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+        <div class="post-list">
+          {posts.map((post) => (
+            <article class="post-card">
+              <h2><a href={postHref(post.slug)}>{post.title}</a></h2>
+              <p class="post-card__meta">
+                <time datetime={post.date}>{formatDate(post.date)}</time>
+              </p>
+              <p>{post.description}</p>
+              {post.tagLinks.length > 0 && (
+                <ul class="post-card__tags">
+                  {post.tagLinks.map((tag) => (
+                    <li>
+                      <a class="tag-link" href={tagHref(tag.slug)}>{tag.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          ))}
+        </div>
+      </>
+    )
+  }
+</BaseLayout>
+
+<style>
+  .tag-cloud__list,
+  .post-card__tags {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3xs) var(--space-2xs);
+  }
+
+  .tag-link {
+    display: inline-block;
+    padding: 0 var(--space-2xs);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-sm);
+    text-decoration: none;
+  }
+
+  /* Class-level specificity so the global `a:visited` cannot recolour a tag
+     pill once its page has been read. */
+  .tag-link:visited {
+    color: var(--color-link);
+  }
+
+  .tag-link:hover {
+    color: var(--color-link-hover);
+  }
+
+  .post-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .post-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    padding: var(--space-md);
+    background: var(--color-surface);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* The global h2 size is tuned for a section heading, not a card title. */
+  .post-card h2 {
+    font-size: var(--text-lg);
+  }
+
+  .post-card h2 a {
+    text-decoration: none;
+  }
+
+  .post-card h2 a:visited {
+    color: var(--color-link);
+  }
+
+  .post-card h2 a:hover {
+    color: var(--color-link-hover);
+  }
+
+  .post-card__meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+</style>

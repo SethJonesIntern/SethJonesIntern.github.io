@@ -1,5 +1,6 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { postSchema } from './lib/posts-schema';
 import { projectSchema } from './lib/projects-schema';
 
 const projects = defineCollection({
@@ -7,4 +8,9 @@ const projects = defineCollection({
   schema: projectSchema,
 });
 
-export const collections = { projects };
+const blog = defineCollection({
+  loader: glob({ base: './src/content/blog', pattern: '**/*.md' }),
+  schema: postSchema,
+});
+
+export const collections = { projects, blog };
