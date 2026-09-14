@@ -1,7 +1,7 @@
 name: CI (Python)
 
-# Generalizable template: copy into any Python repo alongside the spec-harness
-# plugin. Only the `paths` filters and the src/ layout assumption are repo-local.
+# Placeholder until the site has code. Expand, or replace with the stack's own
+# workflow, once a framework is chosen.
 
 on:
   push:
@@ -12,96 +12,20 @@ concurrency:
   group: ci-python-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  PYTHON_VERSION: "3.13"
-
 jobs:
   lint:
-    name: Lint, format, typecheck
+    name: Lint and format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: "3.13"
           cache: pip
-      # Swap for `pip install -e ".[dev]"` once this repo has a real package.
-      - run: pip install ruff mypy
+      - run: pip install ruff
 
       - name: Ruff lint
         run: ruff check --output-format=github .
 
       - name: Ruff format
         run: ruff format --check --diff .
-
-      - name: Mypy
-        run: mypy . || true  # advisory until a typed package exists
-
-  test:
-    name: Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-      # Swap for `pip install -e ".[dev]"` once this repo has a real package.
-      - run: pip install pytest pytest-cov
-
-      - name: Pytest
-        run: pytest
-
-      - name: Skip note
-        if: failure()
-        run: echo "::notice::No application tests yet; only the harness suite runs."
-
-  test-quality:
-    name: Suite audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      # Catches tests that execute code without asserting on it: no-assertion
-      # bodies, vacuous asserts, snapshot blessing, and expected values computed
-      # by calling the code under test. Coverage cannot see any of these.
-      - name: Tautology audit
-        run: |
-          if [ ! -d tests ]; then
-            echo "No tests/ directory yet; nothing to audit."
-            exit 0
-          fi
-          python plugins/spec-harness/tools/test_audit.py tests
-
-  mutation:
-    name: Mutation probe
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    # Non-blocking until a baseline survival rate is established for this repo.
-    # Once you know the real number, drop this line and add a --threshold to the
-    # run step: a surviving mutant is a behavior no test pins down.
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-      - run: pip install -e ".[dev]" mutmut
-
-      - name: Mutate changed source files
-        run: |
-          changed=$(git diff --name-only --diff-filter=d \
-            "origin/${{ github.base_ref }}...HEAD" -- 'src/**/*.py' | tr '\n' ' ')
-          if [ -z "$changed" ]; then
-            echo "No source changes to mutate."
-            exit 0
-          fi
-          echo "Mutating: $changed"
-          mutmut run --paths-to-mutate "$changed" || true
-          mutmut results
