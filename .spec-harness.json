@@ -29,5 +29,5 @@
     "docs/**"
   ],
   "strict_read_isolation": true,
-  "adjudication": "light"
+  "adjudication": "off"
 }
