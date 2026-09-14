@@ -1,0 +1,19 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// Every character becomes a numeric reference so regex scrapers of the raw HTML miss it.
+// Emitted via set:html because expression attributes/text would escape '&' to '&amp;'.
+const email = 'Seth.Jones@ucf.edu';
+const encodedEmail = Array.from(email, (char) => `&#${char.codePointAt(0)};`).join('');
+const emailLink = `<a href="mailto:${encodedEmail}">${encodedEmail}</a>`;
+---
+
+<BaseLayout
+  title="Contact"
+  description="How to reach Seth Jones by email or on GitHub, with a download of his resume."
+>
+  <h1>Contact</h1>
+  <p>Email is the best way to reach me: <Fragment set:html={emailLink} />.</p>
+  <p>My code is on GitHub at <a href="https://github.com/SethJonesIntern">github.com/SethJonesIntern</a>.</p>
+  <p>If you’d like everything in one document, here’s my <a href="/seth-jones-resume.pdf" download>resume (PDF)</a>.</p>
+</BaseLayout>
