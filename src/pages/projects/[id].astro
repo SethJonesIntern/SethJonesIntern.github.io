@@ -1,0 +1,65 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { formatStack, statusLabel } from '../../lib/projects';
+
+export interface Props {
+  entry: CollectionEntry<'projects'>;
+}
+
+export async function getStaticPaths() {
+  const entries = await getCollection('projects');
+  return entries.map((entry) => ({ params: { id: entry.id }, props: { entry } }));
+}
+
+// Space, U+00B7 MIDDLE DOT, space — matches TITLE_SEPARATOR and formatStack.
+const META_SEPARATOR = ' · ';
+
+// Filtering keeps the separator from doubling if a part ever comes back empty.
+function metaLine(data: CollectionEntry<'projects'>['data']): string {
+  return [data.role.trim(), statusLabel(data.status), formatStack(data.stack)]
+    .filter((part) => part !== '')
+    .join(META_SEPARATOR);
+}
+
+const { entry } = Astro.props;
+const { data } = entry;
+const { Content } = await render(entry);
+
+// Absent `repo` must emit no link at all — never an empty <a> or href="undefined".
+const repoUrl = typeof data.repo === 'string' && data.repo.trim() !== '' ? data.repo : undefined;
+---
+
+<BaseLayout title={data.title} description={data.summary}>
+  <h1>{data.title}</h1>
+  <p class="project-meta">{metaLine(data)}</p>
+  <Content />
+  {
+    repoUrl ? (
+      <p>
+        <a class="project-repo" href={repoUrl} rel="noopener">View the repository</a>
+      </p>
+    ) : null
+  }
+</BaseLayout>
+
+<style>
+  .project-meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .project-repo {
+    font-weight: var(--weight-medium);
+  }
+
+  /* Class-level specificity so the global `a:visited` cannot recolour the repo
+     link once it has been followed. */
+  .project-repo:visited {
+    color: var(--color-link);
+  }
+
+  .project-repo:hover {
+    color: var(--color-link-hover);
+  }
+</style>

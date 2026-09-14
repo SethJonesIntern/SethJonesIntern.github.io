@@ -1,0 +1,92 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { formatStack, projectHref, sortProjects, statusLabel } from '../../lib/projects';
+
+// Space, U+00B7 MIDDLE DOT, space — matches TITLE_SEPARATOR and formatStack.
+const META_SEPARATOR = ' · ';
+
+// Filtering keeps the separator from doubling if a part ever comes back empty.
+function metaLine(data: CollectionEntry<'projects'>['data']): string {
+  return [data.role.trim(), statusLabel(data.status), formatStack(data.stack)]
+    .filter((part) => part !== '')
+    .join(META_SEPARATOR);
+}
+
+// getCollection nests frontmatter under `data`, but sortProjects reads the sort
+// keys off the top level, so project them and carry the entry alongside.
+const projects = sortProjects(
+  (await getCollection('projects')).map((entry) => ({
+    id: entry.id,
+    order: entry.data.order,
+    title: entry.data.title,
+    entry,
+  })),
+);
+---
+
+<BaseLayout
+  title="Projects"
+  description="Software projects by Seth Jones: a Python honeynet backend, embedded C++ for the T-SAT 2A satellite payload, and a real-time multiplayer typing game."
+>
+  <h1>Projects</h1>
+  <p>Things I have built outside of research — a honeynet backend, a satellite payload's flight code, and a multiplayer game written over one weekend. Each one has a page with what it was and what I did on it.</p>
+  {
+    projects.length === 0 ? (
+      <p>No projects are listed here yet.</p>
+    ) : (
+      <div class="project-list">
+        {projects.map(({ id, entry }) => (
+          <article class="project-card">
+            <h2><a href={projectHref(id)}>{entry.data.title}</a></h2>
+            <p class="project-card__meta">{metaLine(entry.data)}</p>
+            <p>{entry.data.summary}</p>
+          </article>
+        ))}
+      </div>
+    )
+  }
+</BaseLayout>
+
+<style>
+  .project-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .project-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    padding: var(--space-md);
+    background: var(--color-surface);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* The global h2 size is tuned for a section heading, not a card title. */
+  .project-card h2 {
+    font-size: var(--text-lg);
+  }
+
+  .project-card h2 a {
+    text-decoration: none;
+  }
+
+  /* Class-level specificity so the global `a:visited` cannot recolour a card
+     title once the detail page has been read. */
+  .project-card h2 a:visited {
+    color: var(--color-link);
+  }
+
+  .project-card h2 a:hover {
+    color: var(--color-link-hover);
+  }
+
+  .project-card__meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+</style>
