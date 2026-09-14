@@ -1,6 +1,8 @@
 ---
+import { Image } from 'astro:assets';
 import { SITE_TITLE } from '../consts';
 import SiteNav from './SiteNav.astro';
+import ucfMark from '../assets/ucf-mark.png';
 
 export interface Props {
   /** Current URL pathname, e.g. '/about/'. Required. */
@@ -12,7 +14,21 @@ const { currentPath } = Astro.props;
 
 <header class="site-header">
   <div class="container">
-    <a class="site-header__brand" href="/">{SITE_TITLE}</a>
+    <a class="site-header__brand" href="/">
+      <span class="site-header__mark">
+        <Image
+          src={ucfMark}
+          alt=""
+          width={24}
+          densities={[1, 2]}
+          format="webp"
+          quality={90}
+          loading="eager"
+          decoding="async"
+        />
+      </span>
+      <span class="site-header__name">{SITE_TITLE}</span>
+    </a>
     <SiteNav currentPath={currentPath} />
   </div>
 </header>

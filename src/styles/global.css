@@ -223,11 +223,25 @@ code {
 }
 
 .site-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
   font-family: var(--font-serif);
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
   color: var(--color-heading);
   text-decoration: none;
+}
+
+/* The plate lives on this wrapper, not on the <img>: the mark is fully opaque,
+   so a background on the image would be invisible, and padding on an <img>
+   carrying width/height hints would shrink it under the global border-box. */
+.site-header__mark {
+  display: inline-flex;
+  flex: none;
+  padding: var(--space-3xs);
+  border-radius: var(--radius-sm);
+  background: var(--color-mark-plate);
 }
 
 /* The brand is a self-link on `/`, so it always matches `:visited` there.
