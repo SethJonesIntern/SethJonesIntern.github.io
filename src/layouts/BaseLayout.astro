@@ -1,0 +1,54 @@
+---
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import { SITE_DESCRIPTION, SITE_TITLE, TITLE_SEPARATOR } from '../consts';
+import '../styles/global.css';
+
+export interface Props {
+  /** Page-specific title. Composed with SITE_TITLE for <title>. Required. */
+  title: string;
+  /** Meta description. Falls back to SITE_DESCRIPTION when omitted/blank. */
+  description?: string;
+  /** Main content column width. 'prose' = --layout-prose-width, 'wide' = --layout-max-width. */
+  width?: 'prose' | 'wide';
+  /** Extra class names appended to the <body> class attribute. */
+  bodyClass?: string;
+}
+
+const { title, description, width = 'prose', bodyClass } = Astro.props;
+
+const pageTitle = title.trim();
+const documentTitle =
+  pageTitle === '' || pageTitle === SITE_TITLE
+    ? SITE_TITLE
+    : `${pageTitle}${TITLE_SEPARATOR}${SITE_TITLE}`;
+
+const metaDescription = description?.trim() ? description.trim() : SITE_DESCRIPTION;
+
+// Blank/absent bodyClass must not leave a trailing space or the string "undefined".
+const extraBodyClass = bodyClass?.trim() ?? '';
+const bodyClassName = extraBodyClass === '' ? 'site' : `site ${extraBodyClass}`;
+
+const mainClass = width === 'prose' ? 'site-main container prose' : 'site-main container';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <title>{documentTitle}</title>
+    <meta name="description" content={metaDescription} />
+  </head>
+  <body class={bodyClassName}>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <SiteHeader currentPath={Astro.url.pathname} />
+    <main id="main-content" class={mainClass}>
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

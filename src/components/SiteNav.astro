@@ -1,0 +1,57 @@
+---
+import { NAV_ITEMS } from '../consts';
+
+export interface Props {
+  /** Current URL pathname, e.g. '/about/'. Required. */
+  currentPath: string;
+}
+
+const { currentPath } = Astro.props;
+
+/** Slash-terminates an absolute path; returns '' for anything not comparable. */
+function normalizePath(path: string): string {
+  if (!path.startsWith('/')) return '';
+  return path.endsWith('/') ? path : `${path}/`;
+}
+
+function matchesPath(href: string, path: string): boolean {
+  const target = normalizePath(href);
+  const current = normalizePath(path);
+  if (target === '' || current === '') return false;
+  // Root matches only itself; section links also match descendants. Comparing
+  // slash-terminated strings keeps the prefix test on segment boundaries, so
+  // '/blog-archive/' does not activate '/blog/'.
+  if (target === '/') return current === '/';
+  return current.startsWith(target);
+}
+
+// At most one link may ever be active: keep the longest (most specific) match.
+let activeIndex = -1;
+let activeLength = 0;
+NAV_ITEMS.forEach((item, index) => {
+  if (!matchesPath(item.href, currentPath)) return;
+  const length = normalizePath(item.href).length;
+  if (length > activeLength) {
+    activeIndex = index;
+    activeLength = length;
+  }
+});
+---
+
+<nav class="site-nav" aria-label="Main">
+  <ul class="site-nav__list">
+    {
+      NAV_ITEMS.map((item, index) => (
+        <li class="site-nav__item">
+          <a
+            class={index === activeIndex ? 'site-nav__link is-active' : 'site-nav__link'}
+            href={item.href}
+            aria-current={index === activeIndex ? 'page' : undefined}
+          >
+            {item.label}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
