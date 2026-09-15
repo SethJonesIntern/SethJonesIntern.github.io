@@ -122,8 +122,14 @@ applied to the mark itself — no opacity shift, no filter; the existing brand-t
 
 1. The mark and the name are one anchor to `/`; there is never a second link in the header brand.
 2. Rendered mark geometry is identical in both schemes (32×40 px box); only the plate's paint changes.
-3. No colour, size, space, or radius literal appears in `SiteHeader.astro` or in the new
-   `global.css` rules — every value is a `var(--…)` reference (Invariant 5 of the design system).
+3. No ad-hoc colour, size, space, or radius value appears in the CSS this feature adds: every such
+   value in the new `global.css` rules is a `var(--…)` reference to a token (Invariant 5 of the
+   design system), and `SiteHeader.astro` contributes no CSS at all — no `<style>` block, no
+   `style=` attribute, no inline length or colour. The numeric literals in its markup
+   (`width={24}`, `densities={[1, 2]}`, and the `width="24" height="32"` attributes Astro emits
+   from them) are intrinsic-size metadata that `astro:assets` requires and that the Public API
+   above mandates; they are image-pipeline markup, not style values, and this invariant does not
+   reach them.
 4. The header's accessible name set is unchanged from before this feature.
 
 ## Non-goals
@@ -138,7 +144,9 @@ applied to the mark itself — no opacity shift, no filter; the existing brand-t
 
 1. Trademark: UCF brand guidelines for third-party use of the Pegasus mark are unverified. Using it
    as a personal affiliation mark is the user's call; flag before publishing, do not block the build.
-2. `specs/layout-design-system.spec.md` Behavior #30 enumerates every token name. Adding
-   `--color-transparent` (once) and `--color-mark-plate` (twice) extends that list; the "semantic
-   names appear exactly twice, primitives exactly once" rule still holds. Update that spec's table
-   when this lands, or accept that the grep list is now a subset.
+2. **Closed — the token enumeration was extended, not left a subset.**
+   `specs/layout-design-system.spec.md` now lists `--color-transparent` in its Layer 1 primitives
+   table and `--color-mark-plate` in its Layer 2 semantic table, states 22 semantic tokens in the
+   dark-scheme mechanism, and its Behavior #30 names both additions (primitive declared once,
+   semantic declared twice). The "semantic names appear exactly twice, primitives exactly once"
+   rule holds for both, and that spec's enumeration is complete against `src/styles/tokens.css`.

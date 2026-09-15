@@ -153,8 +153,45 @@ export interface Props {
 ```
 
 Renders `<header class="site-header">` containing a `.container` wrapper with:
-1. a home link `<a class="site-header__brand" href="/">Seth Jones</a>` (text from `SITE_TITLE`),
+1. one home link `<a class="site-header__brand" href="/">` holding exactly two element children,
+   in order: `<span class="site-header__mark">` wrapping a single `astro:assets` `<Image>` of the
+   UCF Pegasus mark, then `<span class="site-header__name">` whose text is `SITE_TITLE`,
 2. `<SiteNav currentPath={currentPath} />`.
+
+The brand anchor is the shipped markup below. It requires the two frontmatter imports shown; the
+image asset `src/assets/ucf-mark.png` is part of the header contract, not an optional decoration —
+removing the mark or splitting it into a second link is a contract violation.
+
+```astro
+---
+import { Image } from 'astro:assets';
+import { SITE_TITLE } from '../consts';
+import SiteNav from './SiteNav.astro';
+import ucfMark from '../assets/ucf-mark.png';
+---
+    <a class="site-header__brand" href="/">
+      <span class="site-header__mark">
+        <Image
+          src={ucfMark}
+          alt=""
+          width={24}
+          densities={[1, 2]}
+          format="webp"
+          quality={90}
+          loading="eager"
+          decoding="async"
+        />
+      </span>
+      <span class="site-header__name">{SITE_TITLE}</span>
+    </a>
+```
+
+The `<Image>` carries no class and no CSS targets it; `alt=""` is deliberate (the mark is
+decorative, so the anchor's accessible name stays exactly `Seth Jones`). The emitted `<img>` has
+`width="24" height="32"` — `astro:assets` derives the height from the 231×310 intrinsic ratio, and
+those numeric attributes are required by `astro:assets`, so they are markup, not style values, and
+are outside the "no literals" rules of Behavior #31 and Invariant 5. Full contract for the mark,
+including the light/dark plate and its two tokens: `specs/header-ucf-mark.spec.md`.
 
 ### `src/components/SiteNav.astro`
 
@@ -394,8 +431,18 @@ Must define, using `var()` tokens for every colour, size, and space value:
 - `.site-header` — `position: static`, bottom border `var(--border-thin) solid var(--color-border)`,
   `padding-block: var(--space-sm)`; its `.container` is `display: flex; flex-wrap: wrap;
   align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-md)`.
-- `.site-header__brand` — `font-family: var(--font-serif)`, `font-size: var(--text-lg)`,
-  `color: var(--color-heading)`, `text-decoration: none`.
+- `.site-header__brand` — `display: inline-flex`, `align-items: center`, `gap: var(--space-2xs)`
+  (the flex row that sets the mark beside the name and centres them on each other),
+  `font-family: var(--font-serif)`, `font-size: var(--text-lg)`,
+  `font-weight: var(--weight-semibold)`, `color: var(--color-heading)`, `text-decoration: none`.
+  `.site-header__brand:visited` → `color: var(--color-heading)` and `.site-header__brand:hover` →
+  `color: var(--color-link-hover)`, declared after the base rule (see Open question 8).
+- `.site-header__mark` — `display: inline-flex`, `flex: none`, `padding: var(--space-3xs)`,
+  `border-radius: var(--radius-sm)`, `background: var(--color-mark-plate)` (transparent in light,
+  an `--color-ink-50` plate in dark). The plate lives on this wrapper, not on the `<img>`: the mark
+  is fully opaque, and padding on an `<img>` carrying width/height hints would shrink it under the
+  global border-box. No rule targets the `<img>` inside it — the global `img` rule derives its
+  32px height from the intrinsic attributes. Contract: `specs/header-ucf-mark.spec.md`.
 - `.site-nav__list` — `list-style: none; padding: 0; display: flex; flex-wrap: wrap;
   gap: var(--space-2xs) var(--space-sm)`.
 - `.site-nav__link` — `font-size: var(--text-sm)`, `color: var(--color-text-muted)`,
@@ -445,8 +492,8 @@ says "raw"; Astro HTML-escapes interpolated values, so raw bytes may contain ent
 | 27 | built output | no `<script>` element in any emitted HTML, and `dist/` contains no `.js` asset | zero client JS |
 | 28 | built output | `dist/index.html` has exactly one stylesheet path — a single `<link rel="stylesheet">` and no `<style>` element — and no element carries an inline `style=` attribute; following that `href` (an emitted file under `dist/_astro/*.css`) yields a stylesheet whose text contains the `--color-` token declarations, e.g. `--color-bg:` | the bundle is ~7.3 kB, above Astro's inline threshold, so it is emitted as a linked stylesheet and `dist/index.html` itself contains **zero** occurrences of `--color-`. Do not assert `--color-` against the HTML; resolve the link and assert against the CSS file |
 | 29 | `src/pages/index.astro` source | imports `../layouts/BaseLayout.astro` and its root element is `<BaseLayout>` | "applied by every page" — currently one page |
-| 30 | `src/styles/tokens.css` source | every token name listed in Public API appears as a declaration; the 22 semantic names appear exactly twice (light `:root`, dark media block) and every primitive name appears exactly once as a declaration | grep-level check |
-| 31 | any `src/components/*.astro`, `src/layouts/*.astro`, `src/pages/*.astro` source | no hex colour literal (`/#[0-9a-fA-F]{3,8}\b/`), no `rgb(`/`hsl(`, no `px` length except `1px`/`2px` borders already tokenised — i.e. colour and spacing only via `var(--…)` | tokens used, not duplicated |
+| 30 | `src/styles/tokens.css` source | every token name listed in Public API appears as a declaration; the 22 semantic names appear exactly twice (light `:root`, dark media block) and every primitive name appears exactly once as a declaration | grep-level check; the Layer 1 and Layer 2 tables above are the complete enumeration, including `--color-transparent` (primitive, once) and `--color-mark-plate` (semantic, twice) |
+| 31 | any `src/components/*.astro`, `src/layouts/*.astro`, `src/pages/*.astro` source | no hex colour literal (`/#[0-9a-fA-F]{3,8}\b/`), no `rgb(`/`hsl(`, no `px` length except `1px`/`2px` borders already tokenised — i.e. colour and spacing only via `var(--…)` | tokens used, not duplicated. The `<Image>` intrinsic-size props in `SiteHeader.astro` (`width={24}`, and the `width`/`height` attributes `astro:assets` emits from it) are markup required by the image pipeline, not style values, and are exempt |
 | 32 | `src/styles/global.css` source | contains no hex colour literal and no `rgb(`/`rgba(`/`hsl(` — all colour via `var(--color-…)` | the only raw `rgba()` in the project is inside the two shadow tokens in `tokens.css` |
 | 33 | viewport 400px wide | `--layout-gutter` computes to `18px` (`0.5rem + 2.5vw` = 8px + 10px, inside the clamp range), leaving a 364px content box; nav wraps to multiple rows; `document.documentElement.scrollWidth <= 400` | no horizontal scroll |
 | 34 | viewport 1280px wide | `--layout-gutter` clamps to its `2rem` maximum; `.prose` main column is 672px wide and horizontally centred | |
@@ -513,12 +560,13 @@ type system. The error surface is compile-time.
 4. `SiteNav` is pure in `currentPath`: same string in → byte-identical markup out.
 5. No colour, font-size, spacing, radius, shadow, or duration value appears as a literal anywhere
    outside the Layer 1 primitive block in `tokens.css`. Components and `global.css` reference
-   `var(--…)` only. (Two exceptions, both mandated by the contracts above: the `rgba()` literals
-   inside `--shadow-sm`/`--shadow-md`, and the `animation-duration: 0.01ms !important` /
+   `var(--…)` only. (Three exceptions, all mandated by the contracts above: the `rgba()` literals
+   inside `--shadow-sm`/`--shadow-md`; the `animation-duration: 0.01ms !important` /
    `transition-duration: 0.01ms !important` literals inside the
    `@media (prefers-reduced-motion: reduce)` block of `global.css`, which the global stylesheet
    contract requires verbatim — a token would defeat the purpose, since the point is to defeat the
-   tokenised durations.)
+   tokenised durations; and the `<Image>` intrinsic-size props in `SiteHeader.astro`, which are
+   image-pipeline markup rather than style values, per Behavior #31.)
 6. Every Layer 2 semantic token resolves to a Layer 1 primitive, in both schemes. No semantic token
    is defined in terms of another semantic token.
 7. The set of semantic token names declared in the light `:root` is exactly equal to the set
@@ -561,7 +609,9 @@ type system. The error surface is compile-time.
   custom properties.
 - SEO/social metadata beyond `<title>` and `<meta name="description">`: no canonical link, no
   Open Graph, no Twitter cards, no JSON-LD, no sitemap, no `robots.txt`.
-- Icons, logos, avatars, favicon replacement, or images of any kind.
+- Icons, logos, avatars, favicon replacement, or images of any kind. (Scope of issue #1 only. The
+  UCF Pegasus mark in the header shipped later under `specs/header-ucf-mark.spec.md` and is now
+  part of the `SiteHeader.astro` contract above; this bullet does not license removing it.)
 - Buttons, cards, badges, tables, forms, or any component beyond the four specified. `--radius-*`,
   `--shadow-*`, `--color-surface`, and `--space-3xl` are defined for future use and may legitimately
   be unreferenced by this issue's CSS — do not test for their usage, only their definition.
