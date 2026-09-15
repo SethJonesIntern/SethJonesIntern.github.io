@@ -13,9 +13,11 @@ export interface Props {
   width?: 'prose' | 'wide';
   /** Extra class names appended to the <body> class attribute. */
   bodyClass?: string;
+  /** When true, emit a robots meta tag keeping the page out of search results. Default false. */
+  noindex?: boolean;
 }
 
-const { title, description, width = 'prose', bodyClass } = Astro.props;
+const { title, description, width = 'prose', bodyClass, noindex = false } = Astro.props;
 
 const pageTitle = title.trim();
 const documentTitle =
@@ -42,6 +44,7 @@ const mainClass = width === 'prose' ? 'site-main container prose' : 'site-main c
     <link rel="icon" href="/favicon.ico" />
     <title>{documentTitle}</title>
     <meta name="description" content={metaDescription} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="alternate" type="application/rss+xml" title={SITE_TITLE} href="/rss.xml" />
   </head>
   <body class={bodyClassName}>

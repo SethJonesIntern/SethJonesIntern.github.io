@@ -93,6 +93,8 @@ Notes:
   issues add the pages; do not create placeholder pages for them and do not add `rel="nofollow"`
   or `aria-disabled`.
 - `FOOTER_LINKS` ships empty. Do not invent URLs (see Open questions).
+- `NAV_ITEMS` stays at seven entries. `/workshop/` (`specs/workshop.spec.md`) is deliberately
+  absent from it and is linked from nowhere; that is not an omission to correct.
 
 ### `src/layouts/BaseLayout.astro`
 
@@ -107,10 +109,13 @@ export interface Props {
   width?: 'prose' | 'wide';
   /** Extra class names appended to the <body> class attribute. */
   bodyClass?: string;
+  /** When true, emit a robots meta tag keeping the page out of search results. Default false. */
+  noindex?: boolean;
 }
 ```
 
-Defaults: `description` → `SITE_DESCRIPTION`, `width` → `'prose'`, `bodyClass` → `undefined`.
+Defaults: `description` → `SITE_DESCRIPTION`, `width` → `'prose'`, `bodyClass` → `undefined`,
+`noindex` → `false`.
 Children are projected through a single default `<slot />` inside `<main>`. No named slots.
 
 Required document structure (exact attribute values; attribute order is not contracted):
@@ -126,6 +131,8 @@ Required document structure (exact attribute values; attribute order is not cont
     <link rel="icon" href="/favicon.ico" />
     <title><!-- composed, see Behavior #1-#4 --></title>
     <meta name="description" content="<!-- resolved, see Behavior #5-#7 -->" />
+    <!-- emitted ONLY when noindex is true; see Behavior #42-#44 -->
+    <meta name="robots" content="noindex, nofollow" />
   </head>
   <body class="<!-- 'site' plus optional bodyClass -->">
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -142,6 +149,16 @@ Required document structure (exact attribute values; attribute order is not cont
   `import '../styles/global.css';`. No other file imports it.
 - `BaseLayout` must not render an `<h1>`; pages own their `<h1>`.
 - No `<script>` tag of any kind.
+- The `robots` meta is written as `{noindex && <meta name="robots" content="noindex, nofollow" />}`
+  and sits immediately after the description meta. Because `noindex` defaults to `false` and every
+  page except `/workshop/` omits the prop, the emitted `<head>` of every other page is unchanged
+  from the pre-`noindex` contract — no empty attribute, no `content="undefined"`, no element at all
+  (Behavior #43). Introduced by `specs/workshop.spec.md`; that spec owns the hidden page, this one
+  owns the layout prop.
+- The head listing above does not enumerate the
+  `<link rel="alternate" type="application/rss+xml">` that `specs/blog.spec.md` later added to the
+  layout; where both are present the `robots` meta precedes it. That omission is scope, not a
+  contradiction — neither element's contract is restated here.
 
 ### `src/components/SiteHeader.astro`
 
@@ -504,6 +521,9 @@ says "raw"; Astro HTML-escapes interpolated values, so raw bytes may contain ent
 | 39 | `README.md` | contains the literal strings `npm run dev`, `npm run build`, `npm install`, `npm run preview`, and `localhost:4321`; contains no Astro-template text (`Astro Starter Kit`, `Seasoned astronaut`) | AC: commands documented |
 | 40 | `package.json` | `name === 'personal-website'`; `scripts.check === 'astro check'`; `scripts.dev`, `scripts.build`, `scripts.preview`, `scripts.astro` unchanged | |
 | 41 | `<BaseLayout title="Research & AI">` | parsed `document.title === 'Research & AI · Seth Jones'` | raw HTML may contain `&#38;`; assert on parsed text |
+| 42 | `<BaseLayout title="X" noindex>` (or `noindex={true}`) | `<head>` contains exactly one `meta[name="robots"]`, and its `content` is exactly `noindex, nofollow` | the shorthand attribute is `true`; added by `specs/workshop.spec.md` |
+| 43 | `<BaseLayout title="X">` (no `noindex`) and `<BaseLayout title="X" noindex={false}>` | `document.querySelector('meta[name="robots"]') === null`; the raw HTML contains no `robots` substring | the element is absent, not empty — every page except `/workshop/` is byte-identical to the pre-`noindex` head |
+| 44 | built output | `dist/workshop/index.html` contains the row-42 meta; `dist/index.html`, `dist/about/index.html`, `dist/research/index.html`, `dist/teaching/index.html`, `dist/projects/index.html`, `dist/blog/index.html`, `dist/contact/index.html` contain no `name="robots"` | one opted-in page, and only by passing the prop |
 
 ## Errors
 
@@ -518,6 +538,8 @@ type system. The error surface is compile-time.
 | `<SiteNav />` or `<SiteHeader />` with no `currentPath` | `astro check` diagnostic `ts(2322)` (`Property 'currentPath' is missing … but required in type 'Props'`); exits 1 | same escape hatch as the missing-`title` row: assert on exit code and the property name `currentPath`, not on exact wording or code |
 | `<BaseLayout title="X" description={null} />` | `astro check` diagnostic `TS2322` | `description` is `string \| undefined`, not nullable |
 | unknown extra prop, e.g. `<BaseLayout title="X" foo="bar" />` | `astro check` diagnostic `TS2322`/`TS2559` | excess property check; do not add an index signature to silence it |
+| `<BaseLayout title="X" noindex="yes" />` or `noindex={null}` | `astro check` diagnostic `TS2322`; `npm run check` exits 1 | `noindex` is `boolean \| undefined` — no string, no `null`, no `0`/`1`. Assert on exit code and the property name `noindex` |
+| `<BaseLayout title="X" />` with `noindex` omitted | **no error** | defaults to `false`, no `robots` meta (Behavior #43) |
 | `currentPath` is `''` or an unmatched path | **no error** | renders full nav with nothing active (Behavior #13, #14) |
 | `FOOTER_LINKS` empty | **no error** | section omitted (Behavior #26) |
 | import of a non-existent token, e.g. `var(--color-primary)` | **no build error** (CSS is not type-checked) | prevented by Behavior #30–#32 source checks instead |
@@ -536,11 +558,13 @@ type system. The error surface is compile-time.
 | empty `NAV_ITEMS` | Undefined, do not test. The array is a compile-time constant with 7 entries; an empty nav is not a supported configuration. |
 | zero — no numeric inputs exist | Not applicable, do not test. |
 | negative — no numeric inputs exist | Not applicable, do not test. |
+| `noindex` omitted / `false` / `true` | All three answered by Behavior #43 and #42 — absent element, absent element, one `noindex, nofollow` meta. Test all three. There is no fourth state; the prop is a plain boolean with no string form. |
+| `noindex` combined with any other prop (`width="wide"`, `bodyClass`, blank `description`) | Independent, no interaction: the robots meta neither changes nor is changed by them. Undefined, do not test. |
 | minimum viewport | 400px is the contracted floor: Behavior #33. Below 320px, undefined, do not test. |
 | maximum viewport | ≥ 1152px (`72rem`): `.container` stops growing, `.prose` stays 672px, content stays centred. Test at 1280px and 2560px for absence of horizontal scroll only. |
 | very long unbroken token in content (e.g. a 200-character URL) | Must not cause horizontal scroll — `overflow-wrap: break-word` on `body`. Test at 400px. |
 | unicode | Two cases, both testable: `TITLE_SEPARATOR` is U+00B7 and the footer uses U+00A9, and both must survive the build byte-identically (files are UTF-8, `<meta charset="utf-8">` present). A `title` containing non-ASCII or `&`/`<` must round-trip through parsed text (Behavior #41). |
-| null / undefined props | `description`, `width`, `bodyClass` accept `undefined` (omission) and apply their defaults — test. Explicit `null` is a type error, not a runtime path — do not test runtime `null`. |
+| null / undefined props | `description`, `width`, `bodyClass`, `noindex` accept `undefined` (omission) and apply their defaults — test. Explicit `null` is a type error, not a runtime path — do not test runtime `null`. |
 | duplicate `href` in `NAV_ITEMS` | Undefined, do not test — `NAV_ITEMS` has 7 distinct hrefs. If hrefs were duplicated, more than one link could go active; the "exactly one active" invariant is scoped to the shipped array. |
 | unordered / reordered `NAV_ITEMS` | Render order must equal array order (Behavior #16). No alphabetical or other sort. Test order explicitly. |
 | duplicate class names on `<body>` (`bodyClass="site"`) | Undefined, do not test. |
@@ -590,6 +614,9 @@ type system. The error surface is compile-time.
 12. `npm run build` and `npm run check` both exit 0 on a clean checkout after `npm install`.
 13. All authored source files are UTF-8 without BOM, and `astro.config.mjs` / `tsconfig.json`
     are byte-identical to their pre-feature state.
+14. The `robots` meta is emitted if and only if a page passes `noindex` as `true`. No other prop,
+    route, or build mode can produce or suppress it, and its `content` value is the single literal
+    `noindex, nofollow` — there is no per-page variant.
 
 ## Non-goals
 
@@ -608,7 +635,11 @@ type system. The error surface is compile-time.
 - Tailwind, UNO, CSS-in-JS, Sass, PostCSS plugins, or any styling dependency. Plain CSS with
   custom properties.
 - SEO/social metadata beyond `<title>` and `<meta name="description">`: no canonical link, no
-  Open Graph, no Twitter cards, no JSON-LD, no sitemap, no `robots.txt`.
+  Open Graph, no Twitter cards, no JSON-LD, no sitemap, no `robots.txt`. (Scope of issue #1 only.
+  The single opt-in `<meta name="robots" content="noindex, nofollow">` shipped later under
+  `specs/workshop.spec.md` and is now part of the `BaseLayout` contract above; it is emitted only
+  when a page passes `noindex`, and this bullet still forbids every other metadata element,
+  including a `robots.txt` file.)
 - Icons, logos, avatars, favicon replacement, or images of any kind. (Scope of issue #1 only. The
   UCF Pegasus mark in the header shipped later under `specs/header-ucf-mark.spec.md` and is now
   part of the `SiteHeader.astro` contract above; this bullet does not license removing it.)
@@ -649,3 +680,11 @@ type system. The error surface is compile-time.
    would otherwise recolour them (the brand is a self-link on `/`, so it always matches `:visited`
    there). No Behavior row covers visited state, which is why none caught the omission; if visited
    styling is contracted per component later, add rows for it.
+9. **Closed — the `noindex` prop was folded in, not left stale.** `specs/workshop.spec.md` added a
+   fifth `BaseLayout` prop and a conditional head element. Both now appear above: `noindex?: boolean`
+   in the Props block with its `false` default, the conditional `<meta name="robots">` in the
+   required document structure, Behavior #42–#44, one Errors row, two Boundaries rows, and
+   Invariant 14. No existing row was weakened — the head contract for every page that omits the prop
+   is exactly what it was, which Behavior #43 now asserts explicitly rather than leaving implied.
+   The head listing here still does not enumerate the RSS `<link rel="alternate">` that
+   `specs/blog.spec.md` added; that remains that spec's to fold in.
