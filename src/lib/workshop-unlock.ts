@@ -1,6 +1,6 @@
 /**
  * Workshop unlock: the two-book combination on the reading shelf.
- * Zero imports, no DOM, no globals: storage, event details and pathnames are passed in,
+ * Zero imports, no DOM, no globals: state, storage, event details and pathnames are passed in,
  * so every branch is unit-testable without a browser or an Astro build.
  */
 
@@ -22,33 +22,35 @@ export const WORKSHOP_HREF: string = '/workshop/';
 /** Link text of the runtime nav item. */
 export const WORKSHOP_NAV_LABEL: string = 'Workshop';
 
-export interface PullResult {
-  /** Correct pulls held after this one. Always an integer, 0 <= progress < max(sequence.length, 1). */
-  readonly progress: number;
-  /** True exactly when this pull completed the sequence. When true, progress is 0. */
-  readonly unlocked: boolean;
+/**
+ * One pointer click on one spine. `pulled` is the current pull order, oldest pull first (start at []);
+ * `bookId` is the clicked spine's `data-book-id`, unvalidated.
+ * Returns a NEW array:
+ *  - `bookId` not a non-empty string  -> a copy of `pulled`, unchanged;
+ *  - `bookId` present in `pulled`      -> `pulled` with every occurrence of `bookId` removed (pushed back),
+ *                                         the remaining ids in their existing relative order;
+ *  - otherwise                          -> `pulled` with `bookId` appended at the end (pulled).
+ * Never mutates `pulled`, never returns `pulled` itself, never throws.
+ */
+export function togglePull(pulled: readonly string[], bookId: unknown): string[] {
+  if (typeof bookId !== 'string' || bookId === '') return [...pulled];
+  if (pulled.includes(bookId)) return pulled.filter((id) => id !== bookId);
+  return [...pulled, bookId];
 }
 
 /**
- * One pointer click on one spine. `progress` is the value returned by the previous pull (start at 0);
- * `bookId` is the clicked spine's `data-book-id`, unvalidated. Never throws.
+ * The unlock test. True exactly when `sequence.length > 0`, `pulled.length === sequence.length`, and
+ * `pulled[i] === sequence[i]` for every index. False for an empty `sequence`. Never mutates, never throws.
  */
-export function pullBook(
-  progress: number,
-  bookId: unknown,
+export function isUnlockOrder(
+  pulled: readonly string[],
   sequence: readonly string[] = UNLOCK_SEQUENCE,
-): PullResult {
-  const length = sequence.length;
-  if (length === 0) return { progress: 0, unlocked: false };
-  const held = Number.isInteger(progress) && progress >= 0 && progress < length ? progress : 0;
-  if (bookId === sequence[held]) {
-    const next = held + 1;
-    return next === length ? { progress: 0, unlocked: true } : { progress: next, unlocked: false };
-  }
-  // Re-arm on the first key so a double-click, or a retry after a stray pull, still holds one pull.
-  // Length is >= 2 here: with one key, a match on sequence[0] was taken above.
-  if (bookId === sequence[0]) return { progress: 1, unlocked: false };
-  return { progress: 0, unlocked: false };
+): boolean {
+  return (
+    sequence.length > 0 &&
+    pulled.length === sequence.length &&
+    pulled.every((id, index) => id === sequence[index])
+  );
 }
 
 /**

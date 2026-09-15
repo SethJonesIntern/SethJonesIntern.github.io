@@ -114,7 +114,7 @@ describe('readUnlocked', () => {
     ).toBe(false);
   });
 
-  // Boundary: getItem returns a non-string (a broken shim)
+  // readUnlocked is parseUnlockFlag(getItem(...)); Invariant 7: parseUnlockFlag(x) === (x === 'true').
   it.each<[unknown]>([[true], [1]])('returns false when getItem returns the non-string %j', (value) => {
     expect(readUnlocked({ getItem: () => value as string, setItem: () => undefined })).toBe(false);
   });

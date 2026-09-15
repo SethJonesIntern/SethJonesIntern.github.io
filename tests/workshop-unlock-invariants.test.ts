@@ -1,8 +1,8 @@
 /**
  * Property tests for the Invariants of specs/workshop-unlock.spec.md.
  *
- * The spec forbids new dependencies and names no property-testing library, so inputs come from a
- * small seeded PRNG (mulberry32) defined here. Each property runs RUNS generated cases with a fixed
+ * The spec forbids new dependencies and no property-testing library is installed, so inputs come from
+ * a small seeded PRNG (mulberry32) defined here. Each property runs RUNS generated cases with a fixed
  * seed, so failures reproduce. Oracles are written from the spec's wording, never from the module.
  */
 import { describe, expect, it } from 'vitest';
@@ -12,12 +12,13 @@ import {
   WORKSHOP_HREF,
   WORKSHOP_NAV_LABEL,
   isPointerClick,
+  isUnlockOrder,
   isWorkshopPath,
   openStorage,
   parseUnlockFlag,
-  pullBook,
   readUnlocked,
   recordUnlock,
+  togglePull,
   workshopNavLink,
   type UnlockStorage,
 } from '../src/lib/workshop-unlock';
@@ -50,11 +51,11 @@ const gen = (seed: number): Gen => {
   return { next, int, pick, bool };
 };
 
-const ID_POOL = ['a', 'b', 'c', 'd', 'e', K, P, C, 'fire-and-blood', 'mythical-man-month'] as const;
+const ID_POOL: readonly string[] = ['a', 'b', 'c', 'd', 'e', K, P, C, 'fire-and-blood', 'mythical-man-month'];
 
 const anyString = (g: Gen): string => {
   if (g.bool()) {
-    return g.pick([...ID_POOL, 'true', 'TRUE', ' true', 'true ', '', 'workshop', '/workshop/']);
+    return g.pick([...ID_POOL, 'true', 'TRUE', ' true', 'true ', '', ' ', 'workshop', '/workshop/']);
   }
   const alphabet = 'abtrueTRUE -/_.1';
   return Array.from({ length: g.int(0, 8) }, () => g.pick(alphabet.split(''))).join('');
@@ -84,15 +85,26 @@ const anyValue = (g: Gen): unknown =>
     () => ({ toString: () => K }),
   ])();
 
-/** A sequence of distinct ids, length in [minLen, maxLen]. */
-const distinctSequence = (g: Gen, minLen: number, maxLen: number): string[] => {
-  const pool = [...ID_POOL];
-  for (let i = pool.length - 1; i > 0; i -= 1) {
+const shuffle = <T>(g: Gen, items: readonly T[]): T[] => {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i -= 1) {
     const j = g.int(0, i);
-    [pool[i], pool[j]] = [pool[j] as (typeof ID_POOL)[number], pool[i] as (typeof ID_POOL)[number]];
+    [out[i], out[j]] = [out[j] as T, out[i] as T];
   }
-  return pool.slice(0, g.int(minLen, maxLen));
+  return out;
 };
+
+/** Distinct ids from the pool, length in [minLen, maxLen]. */
+const distinctIds = (g: Gen, minLen: number, maxLen: number): string[] =>
+  shuffle(g, ID_POOL).slice(0, g.int(minLen, maxLen));
+
+/** Ids from the pool, repeats allowed, length in [0, maxLen]. */
+const anyIds = (g: Gen, maxLen: number): string[] =>
+  Array.from({ length: g.int(0, maxLen) }, () => (g.int(0, 4) === 0 ? anyString(g) : g.pick(ID_POOL)));
+
+/** A bookId that is often already in `pulled`, otherwise anything. */
+const anyBookId = (g: Gen, pulled: readonly string[]): unknown =>
+  pulled.length > 0 && g.bool() ? g.pick(pulled) : g.bool() ? g.pick(ID_POOL) : anyValue(g);
 
 /** Map-backed UnlockStorage that records every call. */
 const fakeStorage = (seed: Record<string, string> = {}) => {
@@ -113,92 +125,120 @@ const anySeed = (g: Gen): Record<string, string> => {
   return seed;
 };
 
-/** Pulls `ids` in order from `start`; returns each pull's `unlocked`. */
-const run = (ids: readonly unknown[], sequence?: readonly string[], start = 0): boolean[] => {
-  let progress = start;
-  return ids.map((id) => {
-    const result = pullBook(progress, id, sequence);
-    progress = result.progress;
-    return result.unlocked;
-  });
-};
+const describeCase = (value: unknown): string =>
+  JSON.stringify(value, (_key, v: unknown) => (v === undefined ? '<undefined>' : v));
 
-describe('Invariant 1: pullBook result shape and progress range', () => {
-  it('returns exactly progress and unlocked, an in-range integer progress, and progress 0 when unlocked', () => {
+describe('Invariant 1: togglePull result', () => {
+  it('returns a new array equal to the spec oracle and leaves a frozen input unchanged', () => {
     const g = gen(1);
     for (let i = 0; i < RUNS; i += 1) {
-      const seq = distinctSequence(g, 0, 5);
-      const progress = anyNumber(g);
-      const bookId = seq.length > 0 && g.bool() ? g.pick(seq) : anyValue(g);
-      const result = pullBook(progress, bookId, seq);
-      const context = { seq, progress, bookId, result };
-      expect(Object.keys(result).sort(), JSON.stringify(context)).toEqual(['progress', 'unlocked']);
-      expect(Number.isInteger(result.progress), JSON.stringify(context)).toBe(true);
-      expect(result.progress, JSON.stringify(context)).toBeGreaterThanOrEqual(0);
-      expect(result.progress, JSON.stringify(context)).toBeLessThan(Math.max(seq.length, 1));
-      expect(typeof result.unlocked, JSON.stringify(context)).toBe('boolean');
-      if (result.unlocked) {
-        expect(result.progress, JSON.stringify(context)).toBe(0);
-      }
+      const original = anyIds(g, 6);
+      const pulled = Object.freeze([...original]);
+      const bookId = anyBookId(g, original);
+      const expected =
+        typeof bookId !== 'string' || bookId === ''
+          ? [...original]
+          : original.includes(bookId)
+            ? original.filter((x) => x !== bookId)
+            : [...original, bookId];
+      const result = togglePull(pulled, bookId);
+      const context = describeCase({ original, bookId, result });
+      expect(result, context).not.toBe(pulled);
+      expect(result, context).toEqual(expected);
+      expect(pulled, context).toEqual(original);
     }
   });
-
-  // Boundary "sequence with repeated ids" is undefined, so generated sequences are always distinct.
 });
 
-describe('Invariant 2: what can unlock', () => {
-  it('unlocks only on a non-empty sequence and only when the pulled id is its last key', () => {
+describe('Invariant 2: togglePull preserves distinctness and round-trips', () => {
+  it('a duplicate-free order stays duplicate-free after any click', () => {
     const g = gen(2);
     for (let i = 0; i < RUNS; i += 1) {
-      const seq = distinctSequence(g, 0, 5);
-      const progress = anyNumber(g);
-      const bookId = seq.length > 0 && g.bool() ? g.pick(seq) : anyValue(g);
-      if (pullBook(progress, bookId, seq).unlocked) {
-        expect(seq.length).toBeGreaterThan(0);
-        expect(bookId).toBe(seq[seq.length - 1]);
-      }
+      const pulled = distinctIds(g, 0, 8);
+      const result = togglePull(pulled, anyBookId(g, pulled));
+      expect(new Set(result).size, describeCase({ pulled, result })).toBe(result.length);
     }
   });
 
-  it('a book id not in the sequence always yields progress 0, locked', () => {
+  it('pulling an absent non-empty id and then pushing it back restores the order', () => {
     const g = gen(3);
     for (let i = 0; i < RUNS; i += 1) {
-      const seq = distinctSequence(g, 0, 5);
-      const bookId = anyValue(g);
-      if ((seq as readonly unknown[]).includes(bookId)) continue;
-      expect(pullBook(anyNumber(g), bookId, seq), JSON.stringify({ seq, bookId })).toEqual({
-        progress: 0,
-        unlocked: false,
-      });
+      const pulled = distinctIds(g, 0, 8);
+      const id = g.bool() ? g.pick(ID_POOL) : anyString(g);
+      if (id === '' || pulled.includes(id)) continue;
+      expect(togglePull(togglePull(pulled, id), id), describeCase({ pulled, id })).toEqual(pulled);
     }
   });
 });
 
-describe('Invariant 3: the whole sequence in order unlocks from any state', () => {
-  it('pulling a distinct sequence in order unlocks on its last pull and no earlier one, from any starting progress', () => {
+describe('Invariant 3: isUnlockOrder is exact, ordered equality with a non-empty sequence', () => {
+  it('matches the spec formula for any order and sequence, without mutating either', () => {
     const g = gen(4);
     for (let i = 0; i < RUNS; i += 1) {
-      const seq = distinctSequence(g, 1, 5);
-      const start = anyNumber(g);
-      const expected = seq.map((_, index) => index === seq.length - 1);
-      expect(run(seq, seq, start), JSON.stringify({ seq, start })).toEqual(expected);
+      const seqOriginal = anyIds(g, 4);
+      const orderOriginal = g.pick<() => string[]>([
+        () => [...seqOriginal],
+        () => shuffle(g, seqOriginal),
+        () => [...seqOriginal, g.pick(ID_POOL)],
+        () => seqOriginal.slice(1),
+        () => anyIds(g, 4),
+      ])();
+      const s = Object.freeze([...seqOriginal]);
+      const o = Object.freeze([...orderOriginal]);
+      const expected = s.length > 0 && o.length === s.length && o.every((x, index) => x === s[index]);
+      const context = describeCase({ o: orderOriginal, s: seqOriginal });
+      expect(isUnlockOrder(o, s), context).toBe(expected);
+      expect(o, context).toEqual(orderOriginal);
+      expect(s, context).toEqual(seqOriginal);
     }
   });
 
-  it('on the shipped sequence, a pull unlocks exactly when it is Prisoner of Azkaban immediately after Clash of Kings', () => {
+  it('with the default sequence, is true only for Clash of Kings then Prisoner of Azkaban', () => {
     const g = gen(5);
-    const clicks: readonly unknown[] = [K, P, C, 'fire-and-blood', 'not-a-spine', undefined, K, P];
     for (let i = 0; i < RUNS; i += 1) {
-      const ids = Array.from({ length: g.int(0, 12) }, () => g.pick(clicks));
-      const expected = ids.map((id, index) => index > 0 && ids[index - 1] === K && id === P);
-      expect(run(ids), JSON.stringify(ids)).toEqual(expected);
+      const o = g.pick<() => string[]>([
+        () => [K, P],
+        () => shuffle(g, [K, P]),
+        () => Array.from({ length: g.int(0, 4) }, () => g.pick([K, P, C])),
+        () => anyIds(g, 4),
+      ])();
+      const expected = o.length === 2 && o[0] === 'a-clash-of-kings' && o[1] === 'harry-potter-prisoner-of-azkaban';
+      expect(isUnlockOrder(o), describeCase(o)).toBe(expected);
     }
   });
 });
 
-describe('Invariant 4: isPointerClick', () => {
-  it('is true exactly for integers >= 1 and false for every non-number', () => {
+describe('Invariant 4: the unlock is reachable from every state', () => {
+  // Assumption: `s` is non-empty. Invariant 3 and Behavior row 28 make an empty sequence never unlock.
+  it('pushing back every pulled book in any order and then pulling the sequence unlocks', () => {
     const g = gen(6);
+    for (let i = 0; i < RUNS; i += 1) {
+      const o = distinctIds(g, 0, 8);
+      const s = distinctIds(g, 1, 5);
+      let pulled: string[] = [...o];
+      for (const id of [...shuffle(g, o), ...s]) {
+        pulled = togglePull(pulled, id);
+      }
+      expect(isUnlockOrder(pulled, s), describeCase({ o, s, pulled })).toBe(true);
+    }
+  });
+
+  it('from any shelf state, pushing everything back and pulling Clash then Azkaban unlocks the shipped sequence', () => {
+    const g = gen(7);
+    for (let i = 0; i < RUNS; i += 1) {
+      const o = distinctIds(g, 0, 8);
+      let pulled: string[] = [...o];
+      for (const id of [...shuffle(g, o), K, P]) {
+        pulled = togglePull(pulled, id);
+      }
+      expect(isUnlockOrder(pulled), describeCase({ o, pulled })).toBe(true);
+    }
+  });
+});
+
+describe('Invariant 5: isPointerClick', () => {
+  it('is true exactly for integers >= 1 and false for every non-number', () => {
+    const g = gen(8);
     for (let i = 0; i < RUNS; i += 1) {
       const detail = g.bool() ? anyNumber(g) : anyValue(g);
       const expected = typeof detail === 'number' && Number.isInteger(detail) && detail >= 1;
@@ -207,45 +247,45 @@ describe('Invariant 4: isPointerClick', () => {
   });
 });
 
-describe('Invariant 5: purity', () => {
-  it('pullBook gives the same result for the same input, interleaved with other pulls, without mutating a frozen sequence', () => {
-    const g = gen(7);
+describe('Invariant 6: purity', () => {
+  it('togglePull and isUnlockOrder give the same result for the same input, interleaved with other calls', () => {
+    const g = gen(9);
     for (let i = 0; i < RUNS; i += 1) {
-      const original = distinctSequence(g, 0, 5);
-      const seq = Object.freeze([...original]);
-      const progress = anyNumber(g);
-      const bookId = seq.length > 0 && g.bool() ? g.pick(seq) : anyValue(g);
-      const first = pullBook(progress, bookId, seq);
-      pullBook(anyNumber(g), g.pick(ID_POOL), distinctSequence(g, 0, 5));
-      pullBook(0, K);
-      const second = pullBook(progress, bookId, seq);
-      expect(second).toEqual(first);
-      expect(seq).toEqual(original);
-    }
-  });
-
-  it('pullBook is deterministic on the shipped combination regardless of earlier calls', () => {
-    const g = gen(8);
-    for (let i = 0; i < 200; i += 1) {
-      pullBook(anyNumber(g), anyValue(g), distinctSequence(g, 0, 5));
-      expect(pullBook(1, P)).toEqual({ progress: 0, unlocked: true });
-      expect(pullBook(0, K)).toEqual({ progress: 1, unlocked: false });
+      const pulled = Object.freeze(anyIds(g, 6));
+      const seq = Object.freeze(anyIds(g, 4));
+      const bookId = anyBookId(g, pulled);
+      const firstToggle = togglePull(pulled, bookId);
+      const firstUnlock = isUnlockOrder(pulled, seq);
+      togglePull(anyIds(g, 6), anyValue(g));
+      isUnlockOrder(anyIds(g, 4), anyIds(g, 4));
+      togglePull([K], P);
+      expect(togglePull(pulled, bookId)).toEqual(firstToggle);
+      expect(isUnlockOrder(pulled, seq)).toBe(firstUnlock);
     }
   });
 
   it('readUnlocked makes exactly one getItem call, for the unlock key, and writes nothing', () => {
-    const g = gen(9);
+    const g = gen(10);
     for (let i = 0; i < RUNS; i += 1) {
       const seed = anySeed(g);
       const f = fakeStorage(seed);
       readUnlocked(f.storage);
-      expect(f.calls).toEqual([['getItem', UNLOCK_STORAGE_KEY]]);
+      expect(f.calls).toEqual([['getItem', 'workshop-unlocked']]);
       expect(Object.fromEntries(f.data)).toEqual(seed);
     }
   });
 
+  it('recordUnlock makes exactly one setItem call, for the unlock key', () => {
+    const g = gen(11);
+    for (let i = 0; i < RUNS; i += 1) {
+      const f = fakeStorage(anySeed(g));
+      recordUnlock(f.storage);
+      expect(f.calls).toEqual([['setItem', 'workshop-unlocked', 'true']]);
+    }
+  });
+
   it('openStorage calls neither getItem nor setItem and returns the storage it was given', () => {
-    const g = gen(10);
+    const g = gen(12);
     for (let i = 0; i < 200; i += 1) {
       const f = fakeStorage(anySeed(g));
       expect(openStorage({ localStorage: f.storage })).toBe(f.storage);
@@ -254,28 +294,28 @@ describe('Invariant 5: purity', () => {
   });
 
   it('isWorkshopPath, workshopNavLink and parseUnlockFlag give the same result on repeated calls', () => {
-    const g = gen(11);
+    const g = gen(13);
     for (let i = 0; i < RUNS; i += 1) {
       const value = anyValue(g);
+      expect(typeof isWorkshopPath(value)).toBe('boolean');
       expect(isWorkshopPath(value)).toBe(isWorkshopPath(value));
       expect(workshopNavLink(value)).toEqual(workshopNavLink(value));
       expect(parseUnlockFlag(value)).toBe(parseUnlockFlag(value));
-      expect(typeof isWorkshopPath(value)).toBe('boolean');
     }
   });
 });
 
-describe('Invariant 6: the stored flag', () => {
-  it('parseUnlockFlag(x) is exactly x === UNLOCK_STORAGE_VALUE', () => {
-    const g = gen(12);
+describe('Invariant 7: the stored flag', () => {
+  it('parseUnlockFlag(x) is exactly x === "true"', () => {
+    const g = gen(14);
     for (let i = 0; i < RUNS; i += 1) {
       const raw = g.bool() ? anyString(g) : anyValue(g);
-      expect(parseUnlockFlag(raw), JSON.stringify(raw)).toBe(raw === 'true');
+      expect(parseUnlockFlag(raw), describeCase(raw)).toBe(raw === 'true');
     }
   });
 
   it('on a working storage, a successful recordUnlock makes readUnlocked true afterwards', () => {
-    const g = gen(13);
+    const g = gen(15);
     for (let i = 0; i < RUNS; i += 1) {
       const f = fakeStorage(anySeed(g));
       expect(recordUnlock(f.storage)).toBe(true);
@@ -284,9 +324,9 @@ describe('Invariant 6: the stored flag', () => {
   });
 });
 
-describe('Invariant 7: the runtime nav link', () => {
+describe('Invariant 8: the runtime nav link', () => {
   it('aria-current page, the active class and isWorkshopPath agree, and href and label never change', () => {
-    const g = gen(14);
+    const g = gen(16);
     const segments = ['workshop', 'Workshop', 'workshops', 'workshop-annex', 'reading', 'blog', 'clock', ''];
     for (let i = 0; i < RUNS; i += 1) {
       const pathname = g.pick<() => unknown>([
@@ -306,8 +346,9 @@ describe('Invariant 7: the runtime nav link', () => {
     }
   });
 
+  // isWorkshopPath doc: "/workshop/, /workshop, and descendants", case-sensitive, segment-bounded.
   it('every descendant of /workshop/ matches and every other first segment does not', () => {
-    const g = gen(15);
+    const g = gen(17);
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789-'.split('');
     for (let i = 0; i < RUNS; i += 1) {
       const segment = Array.from({ length: g.int(1, 10) }, () => g.pick(chars)).join('');
@@ -320,9 +361,9 @@ describe('Invariant 7: the runtime nav link', () => {
   });
 });
 
-describe('Invariant 9: only the completed flag is ever written', () => {
-  it('recordUnlock writes exactly UNLOCK_STORAGE_KEY = UNLOCK_STORAGE_VALUE once and touches no other key', () => {
-    const g = gen(16);
+describe('Invariant 10: only the unlock flag is ever written', () => {
+  it('recordUnlock writes exactly workshop-unlocked = true and touches no other key', () => {
+    const g = gen(18);
     for (let i = 0; i < RUNS; i += 1) {
       const seed = anySeed(g);
       const f = fakeStorage(seed);
@@ -333,6 +374,7 @@ describe('Invariant 9: only the completed flag is ever written', () => {
   });
 });
 
-// Invariants 8 is in workshop-unlock-constants.test.ts. Invariants 10–15 (DOM, CSS, listeners, built
-// HTML, no-JS rendering, accessibility tree) and the "no access to any global" clause of Invariant 5
-// are review-only per the spec: tests may not import .astro files, build, or use a DOM environment.
+// Invariant 9 is in workshop-unlock-constants.test.ts. Invariants 11–17 (DOM, CSS, listeners, built
+// HTML, no-JS rendering, accessibility tree), the "only on a click after which isUnlockOrder is true"
+// clause of Invariant 10, and the "no access to any global" clause of Invariant 6 are review-only per
+// the spec: tests may not import .astro files, build, or use a DOM environment.

@@ -58,7 +58,7 @@ describe('the shipped key books against READING_LIST', () => {
     expect(() => assertUnlockSequence(UNLOCK_SEQUENCE, ['fire-and-blood'])).toThrow(TypeError);
   });
 
-  // Invariant 8
+  // Invariant 9
   it('every shipped key id exists in READING_LIST and none repeats', () => {
     const ids = READING_LIST.map((b) => b.id);
     for (const key of UNLOCK_SEQUENCE) {

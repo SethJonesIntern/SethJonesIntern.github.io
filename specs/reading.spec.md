@@ -23,7 +23,9 @@ remapped under `@media (prefers-color-scheme: dark)`, exactly as the UCF-mark wo
 `--color-mark-plate`. The page joins the nav between Blog and Contact so Contact stays last. No
 client-side JavaScript of this issue's own, no new dependency, no content collection. (Issue #18,
 `specs/workshop-unlock.spec.md`, later added one pointer-click-only script to this page for the
-workshop unlock; it changes neither the markup nor the accessibility of the shelf.)
+workshop unlock: a pointer click on a spine pulls it, marked by a `data-pulled` attribute that one
+CSS rule here raises, and a second click pushes it back. It changes neither the markup nor the
+accessibility of the shelf.)
 
 ## Public API
 
@@ -372,9 +374,11 @@ changed neither number, nor the eight-entry nav.
 Flat route, so the default `directory` build format emits `dist/reading/index.html` at `/reading/`.
 
 This contract is the page as it stands after issue #18. The `workshop-unlock` import, the
-`assertUnlockSequence` call and the `<script>` were added by `specs/workshop-unlock.spec.md`, which
-is the contract of record for them. Everything else, including all of the shelf's markup and
-accessibility semantics, is #16's and is unchanged.
+`assertUnlockSequence` call, the `<script>`, and two changes to the scoped `<style>` — the
+`.shelf__book[data-pulled]` rule and the `:not([data-pulled])` narrowing of the reduced-motion hover
+selector — were added by `specs/workshop-unlock.spec.md`, which is the contract of record for them.
+Everything else, including all of the shelf's markup and accessibility semantics, is #16's and is
+unchanged.
 
 Frontmatter:
 
@@ -413,7 +417,7 @@ Body (no `width` attribute — the column stays `'prose'`):
   description="Books Seth Jones has read recently, from software engineering to fantasy."
 >
   <h1>Reading</h1>
-  <p>A shelf of what I have read lately — some of it for work, most of it not. It is not a review page: if a book is here, it earned a spine.</p>
+  <p>A shelf of what I have read lately — some of it for work, most of it not.</p>
   {
     shelves.map((group) => (
       <section class="shelf" aria-labelledby={shelfHeadingId(group.shelf)}>
@@ -448,8 +452,9 @@ Notes the coder must honour:
 - `data-book-id` and the `book-<id>` DOM id are the book's stable identity: they make a single book
   addressable (a permalink such as `/reading/#book-the-last-olympian`, or a later per-book
   annotation) without renaming anything. The only script that reads `data-book-id` is the
-  pointer-click-only unlock of `specs/workshop-unlock.spec.md`, and it reads it identically for
-  every spine.
+  pointer-click-only unlock of `specs/workshop-unlock.spec.md`, and it treats every spine
+  identically. That script is also the only thing that sets or removes `data-pulled` on a spine; the
+  built HTML never contains `data-pulled`.
 - The page's one `<script>` is #18's unlock, a plain processed `<script>`. No other `<script>`, no
   `on*` attribute, no `client:*` directive.
 
@@ -513,12 +518,23 @@ a primitive token or a `calc()` over one):
     box-shadow: var(--shadow-md);
   }
 
+  /* A pulled book stays up until it is pushed back. It stands higher than the
+     hover lift, so pulling or pushing the book under the pointer still visibly
+     moves it, and hovering a pulled book changes nothing. */
+  .shelf__book[data-pulled],
+  .shelf__book[data-pulled]:hover {
+    transform: translateY(calc(-1 * var(--space-sm)));
+    box-shadow: var(--shadow-md);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .shelf__book {
       transition: none;
     }
 
-    .shelf__book:hover {
+    /* Only the hover lift goes. A pulled book still stands raised, placed
+       without a transition, so it reads as pulled without animating. */
+    .shelf__book:hover:not([data-pulled]) {
       transform: none;
     }
   }
@@ -560,7 +576,9 @@ a primitive token or a `calc()` over one):
 title reads top-to-bottom — the US/UK spine convention. Do **not** use `transform: rotate()` (it
 would not reserve layout space and would break text selection) and do **not** use
 `text-orientation: upright`. Do not add `cursor: pointer`, a `:focus` style, or any per-variant or
-per-book override of the transition, the transform, the geometry, or the typography.
+per-book override of the transition, the transform, the geometry, or the typography. The
+`[data-pulled]` rule is the one state rule, it applies to every spine alike, and it belongs to
+`specs/workshop-unlock.spec.md`, which pins its behaviour in its Behavior rows 89–95.
 
 ### Test setup
 
@@ -611,7 +629,8 @@ Do **not** import any `.astro` file, `astro:*`, `src/consts.ts`, `dist/**`, or t
 
 Rows 1–47 are Vitest cases against the two `src/lib` modules. Rows 48–71 are review criteria
 verified by `npm run build`, `npm run check` and loading the page — this is presentation, and per
-`CLAUDE.md` adjudication is off.
+`CLAUDE.md` adjudication is off. Unless a row says otherwise, review rows are read with no spine
+pulled (a fresh load, no spine clicked).
 
 | # | input | expected output | notes |
 |---|---|---|---|
@@ -681,10 +700,10 @@ verified by `npm run build`, `npm run check` and loading the page — this is pr
 | 64 | computed style of any `ul.shelf__list` | `column-gap` is `0px`(or `normal`), `row-gap` is `32px`, `align-items` is `flex-end`, `flex-wrap` is `wrap` | spines touch; rows are separated by `--space-lg` |
 | 65 | `prefers-color-scheme: light`, computed backgrounds of a clay/teal/ink/sand spine | `rgb(95, 38, 25)`, `rgb(12, 58, 63)`, `rgb(64, 58, 50)`, `rgb(168, 158, 142)`; computed colour is `rgb(250, 248, 245)` on the first three and `rgb(18, 16, 13)` on sand | light token mapping |
 | 66 | `prefers-color-scheme: dark`, same four | `rgb(154, 63, 43)`, `rgb(20, 92, 99)`, `rgb(92, 84, 73)`, `rgb(207, 199, 185)`; text colours unchanged from row 65 | dark token mapping |
-| 67 | hover over each of the 18 spines, no reduced-motion preference | every one computes `transform: matrix(1, 0, 0, 1, 0, -8)` (translateY(-8px), i.e. `--space-2xs`) with `transition-duration: 0.2s` and `transition-timing-function: cubic-bezier(0.2, 0, 0.2, 1)` — identical for all eighteen, and no neighbouring spine moves | one rule, no per-spine variation |
-| 68 | `prefers-reduced-motion: reduce`, hover a spine | computed `transform` is `none` and `transition` is `none`; the `box-shadow` change still applies | motion honoured, affordance kept |
-| 69 | viewport 400px, 768px and 1280px | `document.documentElement.scrollWidth <= viewport width` at each; the fiction shelf wraps to at least two rows at all three; within every row, all spines share one bottom edge (their `getBoundingClientRect().bottom` values are equal) and their thick bottom borders meet to form a continuous board line | multi-row is the normal case; no horizontal scroll ever |
-| 70 | `dist/reading/index.html` | contains no `on[a-z]+=` handler attribute and no `style=` attribute; every `<script>` element is an Astro-processed `type="module"` script from `SiteNav.astro` or this page (`specs/workshop-unlock.spec.md`); the page renders identically with JavaScript disabled | the presentation is CSS-only; the scripts change nothing visible (amended; was "no `<script`") |
+| 67 | hover over each of the 18 spines, none pulled, no reduced-motion preference | every one computes `transform: matrix(1, 0, 0, 1, 0, -8)` (translateY(-8px), i.e. `--space-2xs`) with `transition-duration: 0.2s` and `transition-timing-function: cubic-bezier(0.2, 0, 0.2, 1)` — identical for all eighteen, and no neighbouring spine moves | one rule, no per-spine variation. A pulled spine stays at its pulled raise under hover (`specs/workshop-unlock.spec.md` row 90) |
+| 68 | `prefers-reduced-motion: reduce`, hover a spine that is not pulled | computed `transform` is `none` and `transition` is `none`; the `box-shadow` change still applies | motion honoured, affordance kept. A pulled spine keeps its raise without a transition (`specs/workshop-unlock.spec.md` row 92) |
+| 69 | viewport 400px, 768px and 1280px, no spine pulled and none hovered | `document.documentElement.scrollWidth <= viewport width` at each; the fiction shelf wraps to at least two rows at all three; within every row, all spines share one bottom edge (their `getBoundingClientRect().bottom` values are equal) and their thick bottom borders meet to form a continuous board line | multi-row is the normal case; no horizontal scroll ever. A pulled or hovered spine is transformed and is excluded by design |
+| 70 | `dist/reading/index.html` | contains no `on[a-z]+=` handler attribute, no `style=` attribute and no `data-pulled` attribute; every `<script>` element is an Astro-processed `type="module"` script from `SiteNav.astro` or this page (`specs/workshop-unlock.spec.md`); with JavaScript disabled the page renders identically to the JavaScript-enabled page before any spine is clicked | the presentation is CSS-only; the only visible script effect is a pulled spine's raise (amended; was "no `<script`", then "the scripts change nothing visible") |
 | 71 | `dist/rss.xml` | contains no `/reading/` link | the feed stays blog-only |
 
 ## Errors
@@ -742,10 +761,10 @@ the build, which is the point.
 | unordered input | There is no sort anywhere. Books render in `READING_LIST` order within a shelf (Behavior 38) and shelves in `SHELVES` order regardless of input order (Behavior 37). Test both. |
 | viewport minimum | 400px is the contracted floor (Behavior 69). Below 320px undefined, do not test. |
 | viewport maximum | ≥1280px: spines cap at `--shelf-spine-height-max`'s 16rem ceiling, the column stays `.prose`, and the fiction shelf still wraps. Test scrollWidth and row count only. |
-| `prefers-reduced-motion: reduce` | Behavior 68 — `transform: none`, `transition: none`, shadow change retained. Test. |
-| JavaScript disabled | Fully rendered and fully readable, identical to JavaScript enabled; the shelf is simply inert (the unlock of `specs/workshop-unlock.spec.md` does not run). Behavior 70. Test. |
+| `prefers-reduced-motion: reduce` | Behavior 68 — on a spine that is not pulled, `transform: none`, `transition: none`, shadow change retained. A pulled spine stays raised with no transition; that case is `specs/workshop-unlock.spec.md` row 92. Test. |
+| JavaScript disabled | Fully rendered and fully readable, identical to JavaScript enabled before any spine is clicked; the shelf is simply inert and no spine can be pulled (the unlock of `specs/workshop-unlock.spec.md` does not run). Behavior 70. Test. |
 | forced-colors mode, print stylesheet, RTL (`dir="rtl"`) | Undefined, do not test. The site is `lang="en"` with no RTL support and no print sheet. |
-| touch devices with no hover | The lift simply never fires; nothing depends on it. Undefined, do not test. |
+| touch devices with no hover | The hover lift never fires, and nothing in #16 depends on it. A tap still pulls a spine through the unlock script; that behaviour, including sticky hover, is `specs/workshop-unlock.spec.md` rows 88 and 95. Do not test here. |
 
 ## Invariants
 
@@ -781,14 +800,16 @@ the build, which is the point.
     are the three primitives added to Layer 1 of `tokens.css`.
 11. Every new semantic token name is declared exactly twice (light `:root`, dark media block) and
     every new primitive exactly once; the semantic name sets of the two blocks stay identical.
-12. The hover treatment is declared once, on `.shelf__book`, with no per-variant, per-shelf, or
-    per-index override, delay, or stagger — so the motion is identical for all eighteen spines, and
-    lifting one never moves another.
+12. The hover treatment and the pulled treatment are each declared once, on `.shelf__book` and
+    `.shelf__book[data-pulled]`, with no per-variant, per-shelf, per-book or per-index override,
+    delay, or stagger — so the motion is identical for all eighteen spines, and lifting or pulling
+    one never moves another. A pulled spine stands higher than a hovered one, and hovering it
+    changes nothing.
 13. The shelf's presentation needs no JavaScript: the page renders identically with scripts
     disabled, has no `on*` attribute, no hydration directive, and no new dependency. Its only
     `<script>` is the pointer-click-only unlock contracted by `specs/workshop-unlock.spec.md`, which
-    changes nothing visible and nothing in the accessibility tree. (Amended by #18; #16 shipped no
-    script.)
+    changes nothing in the accessibility tree and whose only visible effect is toggling
+    `data-pulled` on a spine a pointer clicks. (Amended by #18; #16 shipped no script.)
 14. The visual rotation changes no semantics: DOM order is reading order, the shelf is a `<ul>` of
     `<li>` with `role="list"`, each `<section>` is labelled by its own `<h2>`, and no element on the
     page carries `aria-hidden`, `role="presentation"`, `tabindex`, or a visually-hidden duplicate of
@@ -796,8 +817,8 @@ the build, which is the point.
 15. `document.documentElement.scrollWidth` never exceeds the viewport width, at any width from
     400px up. Spines wrap; a shelf never scrolls sideways and never gets its own scroll container.
     Every wrapped row is itself a shelf: its spines share one bottom edge, because `align-items`
-    resolves per flex line, and their feet form a continuous board under that row. The hover lift is
-    a `transform`, which does not affect layout.
+    resolves per flex line, and their feet form a continuous board under that row. The hover lift
+    and the pulled raise are both `transform`s, which do not affect layout.
 16. `NAV_ITEMS` is the only list of pages; `/reading/` appears in it exactly once, at index 6, with
     Contact still last.
 
@@ -805,9 +826,10 @@ the build, which is the point.
 
 - **Anything interactive, in this issue.** No click handler, no keyboard shortcut, no `localStorage`,
   no `cursor: pointer`, no focus styling, no link out of a spine. The spines are decoration around
-  text; the only dynamic behaviour #16 ships is a CSS hover lift. The hidden pointer-click
-  combination that unlocks the workshop was added later by `specs/workshop-unlock.spec.md`, which
-  owns it and keeps every item on this list true for what a visitor can see or focus.
+  text; the only dynamic behaviour #16 ships is a CSS hover lift. The pointer-click pull/push of
+  spines that unlocks the workshop was added later by `specs/workshop-unlock.spec.md`, which owns it:
+  a clicked spine stays raised until clicked again, and nothing becomes focusable, clickable-looking
+  or announced.
 - **Any series machinery.** No `volumes` range, no `series` field, no `seriesOrder`, no grouping of
   a series under a sub-heading, no "Books 1–7" label, no collapsing of the seven Harry Potter
   spines back into one. One entry is one book, and the title is the whole identity.
@@ -894,3 +916,13 @@ Settled — recorded here so the decisions are not relitigated:
     contract — `role="list"`, no `aria-hidden`, no visually-hidden duplicate, Behavior 56 and 58,
     Invariant 14 — is unchanged: Seth decided the shelf stays a real list, and the unlock is
     pointer-click only.
+13. **Closed — amended again for #18's pull/push model (Seth's decision: pulled books stay up, and
+    the shelf's visible state is the lock).** The unlock script now sets `data-pulled` on a clicked
+    spine, so the "byte-identical style" and "changes nothing visible" claims no longer hold.
+    Changed here: the Purpose parenthetical; the page-contract preamble and the `data-book-id` note;
+    the scoped `<style>` (the new `.shelf__book[data-pulled]` rule raising a pulled spine by
+    `--space-sm`, and the reduced-motion hover selector narrowed to `:not([data-pulled])`) and the
+    paragraph after it; the Behavior preamble and rows 67–70; the reduced-motion,
+    JavaScript-disabled and touch boundaries; Invariants 12, 13 and 15; and the "Anything
+    interactive" non-goal. The markup, the accessibility contract, the tokens and every Vitest row
+    are unchanged. `specs/workshop-unlock.spec.md` owns the pulled behaviour and its review rows.

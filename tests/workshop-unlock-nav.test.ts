@@ -45,8 +45,6 @@ describe('isWorkshopPath', () => {
   ])('does not match %j', (pathname) => {
     expect(isWorkshopPath(pathname)).toBe(false);
   });
-
-  // Boundary "pathname with a site base prefix": undefined, not tested.
 });
 
 describe('workshopNavLink', () => {

@@ -117,5 +117,6 @@ describe('assertUnlockSequence — rejects', () => {
     );
   });
 
-  // Boundary "null / undefined / non-array sequence or knownIds": undefined beyond row 18, not tested.
+  // Boundary "null / undefined / non-array sequence or knownIds to assertUnlockSequence": typed, undefined,
+  // not tested.
 });
