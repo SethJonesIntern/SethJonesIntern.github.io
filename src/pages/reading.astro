@@ -9,9 +9,13 @@ import {
   spineClass,
 } from '../lib/reading';
 import { READING_LIST } from '../lib/reading-books';
+import { UNLOCK_SEQUENCE, assertUnlockSequence } from '../lib/workshop-unlock';
 
 // A duplicate id would emit duplicate DOM ids; fail the build instead.
 assertUniqueBookIds(READING_LIST);
+
+// A key book renamed or removed would make the combination unreachable; fail the build.
+assertUnlockSequence(UNLOCK_SEQUENCE, READING_LIST.map((book) => book.id));
 
 const shelves = groupByShelf(READING_LIST);
 
@@ -44,6 +48,35 @@ shelves.forEach((group) => assertVariedSpines(group.books));
       </section>
     ))
   }
+  <script>
+    import {
+      WORKSHOP_HREF,
+      isPointerClick,
+      openStorage,
+      pullBook,
+      recordUnlock,
+    } from '../lib/workshop-unlock';
+
+    // In memory only: a reload starts the combination over.
+    let progress = 0;
+
+    // One listener on document, never on the shelf, so no spine is exposed to assistive
+    // technology as clickable. Keyboard, AT and element.click() arrive with detail 0 and are ignored.
+    document.addEventListener('click', (event) => {
+      if (!isPointerClick(event.detail)) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const spine = target.closest('ul.shelf__list li.shelf__book');
+      if (spine === null) return;
+      const result = pullBook(progress, spine.getAttribute('data-book-id'));
+      progress = result.progress;
+      if (result.unlocked) {
+        // Navigate even if the write failed: blocked storage degrades to a plain visit.
+        recordUnlock(openStorage(window));
+        window.location.assign(WORKSHOP_HREF);
+      }
+    });
+  </script>
 </BaseLayout>
 
 <style>

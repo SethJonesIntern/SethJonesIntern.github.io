@@ -102,7 +102,7 @@ The meta descriptions are deliberately third person — they are metadata, not p
 | 12 | each of the three | `<main>` class list is `site-main container prose`; `<body class="site">` exactly | defaults |
 | 13 | each of the three | one `.skip-link`, one `<header>`, one `<nav aria-label="Main">`, one `<main id="main-content">`, one `<footer>`, in that DOM order | inherited from #1 |
 | 14 | each of the three source files | contains no `<style>` block, no hex colour, no `rgb(`/`hsl(`, no `px`/`rem` literal, no `class` attribute on any element | zero new CSS |
-| 15 | built output | no `<script>` element on any of the three pages; `dist/` still contains no `.js` asset | zero client JS |
+| 15 | built output and source | none of the three pages has a `<script>` element other than the site-wide nav script `SiteNav.astro` emits (`specs/workshop-unlock.spec.md`); none of the three source files contains `<script>`; no `<main>` contains a `<script>` | no client JS of the pages' own (amended by #18; was "no `<script>`, no `.js` asset") |
 | 16 | viewport 400px, each page | `documentElement.scrollWidth <= 400` | no horizontal scroll |
 | 17 | `npm run build` and `npm run check` | both exit 0 | |
 | 18 | `dist/index.html` | still contains the hero, unchanged; its `/about/` and `/research/` hero links now resolve to real files | #3 untouched |
@@ -166,3 +166,5 @@ No runtime error surface: these are static pages with no props of their own.
 5. **Whether GPA and President's List belong on the page at all** is Seth's call. They are in the
    issue's acceptance criteria, so they ship, factored into an `Education` list rather than the
    prose so removing them is a two-line edit.
+6. **Closed — Behavior #15 was amended for issue #18.** `specs/workshop-unlock.spec.md` added a
+   site-wide nav script; the three pages still ship no script of their own.

@@ -55,3 +55,32 @@ NAV_ITEMS.forEach((item, index) => {
     }
   </ul>
 </nav>
+
+<script>
+  import { openStorage, readUnlocked, workshopNavLink } from '../lib/workshop-unlock';
+
+  // Runtime-only so the built HTML never carries a crawler-visible /workshop/ link.
+  function reveal(): void {
+    if (!readUnlocked(openStorage(window))) return;
+    const list = document.querySelector('nav.site-nav ul.site-nav__list');
+    if (list === null) return;
+    const link = workshopNavLink(window.location.pathname);
+    if (list.querySelector(`a[href="${link.href}"]`) !== null) return;
+    const anchor = document.createElement('a');
+    anchor.setAttribute('class', link.className);
+    anchor.setAttribute('href', link.href);
+    anchor.textContent = link.label;
+    if (link.ariaCurrent === 'page') anchor.setAttribute('aria-current', link.ariaCurrent);
+    const item = document.createElement('li');
+    item.setAttribute('class', 'site-nav__item');
+    item.append(anchor);
+    list.append(item);
+  }
+
+  reveal();
+
+  // A back/forward-cache restore does not re-run module scripts.
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) reveal();
+  });
+</script>

@@ -14,7 +14,10 @@ generic placeholder. The decision logic that can be unit-tested (id validation, 
 duplicate detection) lives in a plain TypeScript module with zero imports; the registry, which must
 import `.astro` files, is a separate module so the pure one stays importable from Vitest. The way
 **in** — an easter-egg unlock from a bookshelf on `/reading/` — is issue #18 and is explicitly out of
-scope here. No client-side JavaScript, no new dependency, no new design token.
+scope here. No client-side JavaScript of the room's own, no new dependency, no new design token.
+(Issue #18, `specs/workshop-unlock.spec.md`, later added a site-wide nav script that, for a visitor
+who has unlocked the room, appends a runtime-only `Workshop` nav item; "linked from nowhere" still
+holds for every built HTML file.)
 
 ## Public API
 
@@ -272,8 +275,8 @@ check` and loading the page — this is presentation, and per `CLAUDE.md` adjudi
 | 26 | `dist/workshop/index.html` `<title>` | `Workshop · Seth Jones` | separator is space + U+00B7 + space |
 | 27 | `dist/workshop/index.html` body | exactly one `<h1>` whose text is `Workshop`; no `<h2>` | nothing on the bench |
 | 28 | `dist/workshop/index.html` | contains one `div.workshop-note` holding three `<p>`, the last `p.workshop-note__signature` with text `— Seth`; contains no `ol.exhibit-list` and no `li.exhibit` | empty state is a note, not a placeholder |
-| 29 | `dist/workshop/index.html` | contains no `<script` and no `href="/workshop/"` outside its own `<link rel="icon">`/nav markup — i.e. the nav renders the `NAV_ITEMS` links and no extra one | not linked, no client JS |
-| 30 | grep `workshop` across `dist/**/*.html` other than `dist/workshop/` | no match | reachable only by typing the URL |
+| 29 | `dist/workshop/index.html` | contains no `<script>` element of the room's own — the only scripts are those `SiteNav.astro` emits on every page (`specs/workshop-unlock.spec.md`); the static nav renders the `NAV_ITEMS` links and no `a[href="/workshop/"]` | not linked, no room JS (amended by #18; was "no `<script`") |
+| 30 | parsed static DOM of every `dist/**/*.html` other than `dist/workshop/` | no element whose `href` contains `/workshop`, and no visible text containing `workshop`; the string may appear only inside `<script>` element text, if Astro inlines the nav script | reachable only by typing the URL, or through the runtime nav item of an unlocked visitor (amended by #18; was a raw grep for `workshop`) |
 | 31 | `dist/workshop/index.html` nav | no `.site-nav__link` carries `is-active` or `aria-current` | `/workshop/` matches no `NAV_ITEMS` href, including `/` |
 | 32 | `dist/rss.xml` | contains no `/workshop/` link | feed is blog-only and stays so |
 | 33 | `npm run check` | exit 0, zero errors and zero warnings | TypeScript strict clean |
@@ -337,13 +340,18 @@ check` and loading the page — this is presentation, and per `CLAUDE.md` adjudi
 8. Adding an exhibit touches exactly two files: one new `.astro` component and
    `src/lib/workshop-registry.ts`. Any design that requires editing the page, the layout, the
    styles, or `consts.ts` to add an exhibit fails this spec.
-9. The site still ships zero client-side JavaScript: no `<script>` in the new page or in any exhibit
-   component, no framework integration, no hydration directive.
+9. The room ships no client-side JavaScript of its own: no `<script>` in the page or in any exhibit
+   component, no framework integration, no hydration directive. The only script on
+   `/workshop/` is the site-wide nav script contracted by `specs/workshop-unlock.spec.md`.
+   (Amended by #18; #17 shipped zero client JS site-wide.)
 10. Every colour, space, size, radius, border and shadow value in the CSS this feature adds is a
     `var(--…)` reference to an existing semantic token. No literal, no new token, no `tokens.css` or
     `global.css` edit.
-11. `/workshop/` has no inbound link anywhere in `dist/`, and `NAV_ITEMS` contains no entry for it.
-    The nav's length is owned by whichever spec last added a page — it is eight since
+11. `/workshop/` has no inbound link in any built HTML file anywhere in `dist/`, and `NAV_ITEMS`
+    contains no entry for it. The only link to it that can ever exist is the runtime nav item that
+    `specs/workshop-unlock.spec.md` appends in the browser for a visitor whose `localStorage` holds
+    the unlock flag — never in built HTML, never with JavaScript disabled, never for a crawler with
+    empty storage. The nav's length is owned by whichever spec last added a page — it is eight since
     `specs/reading.spec.md` — so this invariant counts `/workshop/` entries, not nav entries.
 
 ## Non-goals
@@ -351,16 +359,19 @@ check` and loading the page — this is presentation, and per `CLAUDE.md` adjudi
 - **The way in.** No bookshelf, no `/reading/` page, no easter-egg unlock, no keyboard sequence, no
   hover trick, no `localStorage` flag. That is issue #18, which will consume `EXHIBITS` and this
   page's URL and must not need either changed. Whether the unlock leaves a crawler-visible link is
-  that issue's criterion, not this one's.
+  that issue's criterion, not this one's. (Shipped under `specs/workshop-unlock.spec.md`: it uses
+  this page's URL only, changes neither `EXHIBITS` nor this page, and leaves no crawler-visible
+  link.)
 - Any actual exhibit. `src/components/workshop/` may be created empty or not at all; no demo, no
   "hello world" exhibit, no commented-out sample entry beyond the comment quoted in the registry.
-- A nav entry, a footer link, a "secret" hint, or any inbound link from another page.
+- A nav entry, a footer link, a "secret" hint, or any inbound link from another page, in built HTML.
+  The runtime-only nav item of `specs/workshop-unlock.spec.md` is that spec's, not this one's.
 - `robots.txt`, a sitemap, canonical links, Open Graph, or any SEO metadata beyond the one `robots`
   meta this spec adds — consistent with the Non-goals of `specs/layout-design-system.spec.md`.
 - Per-exhibit pages or permalinks (`/workshop/<id>/`), an exhibit content collection, MDX, tags,
   filtering, sorting, search, or an RSS feed for exhibits.
-- Client-side JavaScript, a framework integration (`@astrojs/react` et al.), an iframe sandbox, or
-  any new npm dependency.
+- Client-side JavaScript in the room or its exhibits, a framework integration (`@astrojs/react` et
+  al.), an iframe sandbox, or any new npm dependency.
 - Runtime validation of `title`/`blurb` length or content. "Short blurb" is a convention (aim for
   ≤ 160 characters), enforced by review, not by code.
 - Tests that import `.astro` files, `astro:*` modules, `src/lib/workshop-registry.ts`, or `dist/**`,
@@ -401,3 +412,8 @@ Settled — recorded here so the decisions are not relitigated:
    needs the 72rem column is a decision for the first real exhibit: switch the page to
    `width="wide"` then, or add a field to `Exhibit` then. Nothing speculative now, and Invariant 8
    stands as written until that day.
+7. **Closed — amended for issue #18 (`specs/workshop-unlock.spec.md`).** Purpose, Behavior 29–30,
+   Invariants 9 and 11, and three non-goals now account for the site-wide nav script and the
+   runtime-only Workshop nav item. What this spec protects is unchanged: no `/workshop/` link in any
+   built HTML, no `NAV_ITEMS` entry, no script of the room's own, and `noindex` on the page. The
+   page file and the registry are untouched by #18.
