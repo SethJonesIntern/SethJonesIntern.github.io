@@ -9,9 +9,13 @@ import {
   spineClass,
 } from '../lib/reading';
 import { READING_LIST } from '../lib/reading-books';
+import { UNLOCK_SEQUENCE, assertUnlockSequence } from '../lib/workshop-unlock';
 
 // A duplicate id would emit duplicate DOM ids; fail the build instead.
 assertUniqueBookIds(READING_LIST);
+
+// A key book renamed or removed would make the combination unreachable; fail the build.
+assertUnlockSequence(UNLOCK_SEQUENCE, READING_LIST.map((book) => book.id));
 
 const shelves = groupByShelf(READING_LIST);
 
@@ -24,7 +28,7 @@ shelves.forEach((group) => assertVariedSpines(group.books));
   description="Books Seth Jones has read recently, from software engineering to fantasy."
 >
   <h1>Reading</h1>
-  <p>A shelf of what I have read lately — some of it for work, most of it not. It is not a review page: if a book is here, it earned a spine.</p>
+  <p>A shelf of what I have read lately — some of it for work, most of it not.</p>
   {
     shelves.map((group) => (
       <section class="shelf" aria-labelledby={shelfHeadingId(group.shelf)}>
@@ -44,6 +48,42 @@ shelves.forEach((group) => assertVariedSpines(group.books));
       </section>
     ))
   }
+  <script>
+    import {
+      WORKSHOP_HREF,
+      isPointerClick,
+      isUnlockOrder,
+      openStorage,
+      recordUnlock,
+      togglePull,
+    } from '../lib/workshop-unlock';
+
+    // In memory only, shared by both shelves: a fresh load starts with nothing pulled.
+    let order: string[] = [];
+
+    // One listener on document, never on the shelf, so no spine is exposed to assistive
+    // technology as clickable. Keyboard, AT and element.click() arrive with detail 0 and are ignored.
+    document.addEventListener('click', (event) => {
+      if (!isPointerClick(event.detail)) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const spine = target.closest('ul.shelf__list li.shelf__book');
+      if (spine === null) return;
+      const id = spine.getAttribute('data-book-id');
+      order = togglePull(order, id);
+      if (id !== null && order.includes(id)) {
+        spine.setAttribute('data-pulled', '');
+      } else {
+        spine.removeAttribute('data-pulled');
+      }
+      if (isUnlockOrder(order)) {
+        // Navigate even if the write failed: blocked storage degrades to a plain visit. Nothing is
+        // lowered first, so a back/forward restore shows the shelf exactly as it was left.
+        recordUnlock(openStorage(window));
+        window.location.assign(WORKSHOP_HREF);
+      }
+    });
+  </script>
 </BaseLayout>
 
 <style>
@@ -103,12 +143,23 @@ shelves.forEach((group) => assertVariedSpines(group.books));
     box-shadow: var(--shadow-md);
   }
 
+  /* A pulled book stays up until it is pushed back. It stands higher than the
+     hover lift, so pulling or pushing the book under the pointer still visibly
+     moves it, and hovering a pulled book changes nothing. */
+  .shelf__book[data-pulled],
+  .shelf__book[data-pulled]:hover {
+    transform: translateY(calc(-1 * var(--space-sm)));
+    box-shadow: var(--shadow-md);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .shelf__book {
       transition: none;
     }
 
-    .shelf__book:hover {
+    /* Only the hover lift goes. A pulled book still stands raised, placed
+       without a transition, so it reads as pulled without animating. */
+    .shelf__book:hover:not([data-pulled]) {
       transform: none;
     }
   }

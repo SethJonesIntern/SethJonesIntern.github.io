@@ -15,7 +15,9 @@ target is professional but warm: warm-grey neutrals rather than blue-grey, a dee
 a clay counter-accent, a serif display face against a sans body face, generous line height and
 vertical rhythm, and a comfortable reading measure. It must render correctly in both light and dark
 colour schemes, stay readable with no horizontal scroll at a 400px viewport, and ship zero
-client-side JavaScript.
+client-side JavaScript. (Zero client JS was the contract for issue #1. Issue #18,
+`specs/workshop-unlock.spec.md`, later added the site's only scripts, confined to `SiteNav` and the
+`/reading/` shelf; see Invariant 10.)
 
 ## Public API
 
@@ -99,7 +101,9 @@ Notes:
 - `FOOTER_LINKS` ships empty. Do not invent URLs (see Open questions).
 - `NAV_ITEMS` has eight entries, `/reading/` having been added between Blog and Contact by
   `specs/reading.spec.md`. Contact stays last. `/workshop/` (`specs/workshop.spec.md`) is
-  deliberately absent from it and is linked from nowhere; that is not an omission to correct.
+  deliberately absent from it and is linked from nowhere in built HTML; that is not an omission to
+  correct. The `Workshop` item an unlocked visitor sees is appended at runtime by
+  `specs/workshop-unlock.spec.md`, not declared here.
 
 ### `src/layouts/BaseLayout.astro`
 
@@ -155,7 +159,9 @@ Required document structure (exact attribute values; attribute order is not cont
 - `global.css` is imported exactly once, in `BaseLayout.astro` frontmatter:
   `import '../styles/global.css';`. No other file imports it.
 - `BaseLayout` must not render an `<h1>`; pages own their `<h1>`.
-- No `<script>` tag of any kind.
+- No `<script>` tag of any kind in `BaseLayout.astro` itself. The site's only scripts live in
+  `SiteNav.astro` and `src/pages/reading.astro` (`specs/workshop-unlock.spec.md`); the nav script
+  reaches every page through `SiteHeader` → `SiteNav`, not through the layout.
 - The `robots` meta is written as `{noindex && <meta name="robots" content="noindex, nofollow" />}`
   and sits immediately after the description meta. Because `noindex` defaults to `false` and every
   page except `/workshop/` omits the prop, the emitted `<head>` of every other page is unchanged
@@ -241,6 +247,13 @@ Renders:
 
 One `<li>` per entry of `NAV_ITEMS`, in array order. Exactly zero or one link carries
 `aria-current="page"`. Active matching is specified in Behavior #8–#16.
+
+`SiteNav.astro` also carries one processed `<script>` (no attributes), added by
+`specs/workshop-unlock.spec.md`, which is its contract of record. The markup above is unchanged and
+still fully server-rendered: the built HTML of every page holds exactly `NAV_ITEMS.length` items. At
+runtime, and only when the workshop unlock flag is stored in `localStorage`, the script appends
+exactly one more `li.site-nav__item > a.site-nav__link[href="/workshop/"]` as the list's last item.
+With JavaScript disabled or the flag absent, nothing is appended.
 
 ### `src/components/SiteFooter.astro`
 
@@ -513,7 +526,7 @@ says "raw"; Astro HTML-escapes interpolated values, so raw bytes may contain ent
 | 24 | built `dist/index.html` | contains `<h1>` exactly once, and its text is `Seth Jones` | pages own the h1 |
 | 25 | built `dist/index.html` | footer contains a `<p>` whose text matches `/^© \d{4} Seth Jones$/` and a `<p>` with text `PhD student in Computer Science, University of Central Florida` | year from build time |
 | 26 | `FOOTER_LINKS` is `[]` | no `ul.site-footer__links` element in the footer | list is conditional |
-| 27 | built output | no `<script>` element in any emitted HTML, and `dist/` contains no `.js` asset | zero client JS |
+| 27 | built output | every `<script>` element in emitted HTML is an Astro-processed `type="module"` script originating from `SiteNav.astro` (every page) or `src/pages/reading.astro` (`/reading/` only); any emitted `.js` asset is under `dist/_astro/`; no element carries an `on*=` handler attribute | client JS confined to the nav and the shelf (amended by `specs/workshop-unlock.spec.md`; was "no `<script>`, no `.js` asset") |
 | 28 | built output | `dist/index.html` has exactly one stylesheet path — a single `<link rel="stylesheet">` and no `<style>` element — and no element carries an inline `style=` attribute; following that `href` (an emitted file under `dist/_astro/*.css`) yields a stylesheet whose text contains the `--color-` token declarations, e.g. `--color-bg:` | the bundle is ~7.3 kB, above Astro's inline threshold, so it is emitted as a linked stylesheet and `dist/index.html` itself contains **zero** occurrences of `--color-`. Do not assert `--color-` against the HTML; resolve the link and assert against the CSS file |
 | 29 | `src/pages/index.astro` source | imports `../layouts/BaseLayout.astro` and its root element is `<BaseLayout>` | "applied by every page" — currently one page |
 | 30 | `src/styles/tokens.css` source | every token name listed in Public API appears as a declaration; the 30 semantic names appear exactly twice (light `:root`, dark media block) and every primitive name appears exactly once as a declaration | grep-level check; the Layer 1 and Layer 2 tables above are the complete enumeration, including `--color-transparent` (primitive, once), `--color-mark-plate` (semantic, twice), the three `--shelf-spine-*` geometry primitives (once each) and the eight `--color-spine-*` tokens (semantic, twice each) from `specs/reading.spec.md` |
@@ -586,9 +599,14 @@ type system. The error surface is compile-time.
    `.skip-link`, one `<header>`, one `<nav aria-label="Main">`, one `<main id="main-content">`,
    and one `<footer>`, in that DOM order.
 2. Exactly zero or one nav link carries `aria-current="page"`, for any `currentPath` string.
-   `aria-current` and the `is-active` class always co-occur on the same element.
-3. The number of rendered nav `<li>` elements equals `NAV_ITEMS.length` for every input.
-4. `SiteNav` is pure in `currentPath`: same string in → byte-identical markup out.
+   `aria-current` and the `is-active` class always co-occur on the same element. This still holds
+   after the runtime Workshop item of `specs/workshop-unlock.spec.md` is appended, because
+   `/workshop/` matches no `NAV_ITEMS` href.
+3. The number of rendered nav `<li>` elements in the built HTML equals `NAV_ITEMS.length` for every
+   input. At runtime the workshop unlock (`specs/workshop-unlock.spec.md`) may append exactly one
+   further item, never more, and never with JavaScript disabled.
+4. `SiteNav` is pure in `currentPath`: same string in → byte-identical server-rendered markup out.
+   The runtime Workshop item is not part of that markup.
 5. No colour, font-size, spacing, radius, shadow, or duration value appears as a literal anywhere
    outside the Layer 1 primitive block in `tokens.css`. Components and `global.css` reference
    `var(--…)` only. (Three exceptions, all mandated by the contracts above: the `rgba()` literals
@@ -615,7 +633,11 @@ type system. The error surface is compile-time.
    token — they fail 4.5:1 on both backgrounds by design.
 9. No horizontal overflow: `documentElement.scrollWidth <= viewportWidth` at 400, 768, 1280, and
    2560px, in both schemes.
-10. Zero bytes of client-side JavaScript are emitted for any page.
+10. Client-side JavaScript is confined to the two processed scripts contracted by
+    `specs/workshop-unlock.spec.md` — one in `SiteNav.astro`, one in `src/pages/reading.astro`. No
+    other component, layout or page ships a `<script>`, and every page renders its full content
+    with JavaScript disabled. (Amended by #18; issue #1 emitted zero bytes of client-side
+    JavaScript.)
 11. Heading levels within a page descend without skipping, and each page has exactly one `<h1>`,
     rendered by the page and never by the layout.
 12. `npm run build` and `npm run check` both exit 0 on a clean checkout after `npm install`.
@@ -636,7 +658,9 @@ type system. The error surface is compile-time.
 - Real home-page content: photo, bio, publication list, research description, CTAs. `index.astro`
   gets one `<h1>` and one placeholder paragraph.
 - A theme toggle, a `data-theme` attribute, `localStorage` persistence, or any colour-scheme
-  JavaScript. Dark mode is `prefers-color-scheme` only.
+  JavaScript. Dark mode is `prefers-color-scheme` only. (The workshop unlock flag that
+  `specs/workshop-unlock.spec.md` stores in `localStorage` has nothing to do with colour scheme;
+  this bullet still forbids theme persistence.)
 - A hamburger/drawer mobile menu, dropdowns, or sticky/scroll-aware header. Nav wraps with flexbox.
 - Web fonts, font subsetting, `@font-face`, or Google Fonts. System stacks only.
 - Tailwind, UNO, CSS-in-JS, Sass, PostCSS plugins, or any styling dependency. Plain CSS with
@@ -695,3 +719,10 @@ type system. The error surface is compile-time.
    is exactly what it was, which Behavior #43 now asserts explicitly rather than leaving implied.
    The head listing here still does not enumerate the RSS `<link rel="alternate">` that
    `specs/blog.spec.md` added; that remains that spec's to fold in.
+10. **Closed — the "zero client JS" contract was amended for issue #18.**
+    `specs/workshop-unlock.spec.md` added the site's first scripts: one in `SiteNav.astro` that
+    appends a runtime-only `Workshop` nav item for visitors who have unlocked the room, and one on
+    `/reading/` that listens to the shelf. Changed here: Purpose, the `BaseLayout` no-script note,
+    the `SiteNav` section, a `NAV_ITEMS` note, Behavior #27, Invariants 2, 3, 4 and 10, and the
+    theme-persistence non-goal. The server-rendered nav, `BaseLayout`, the tokens and every other
+    row are unchanged, and every page still renders its full content with JavaScript disabled.

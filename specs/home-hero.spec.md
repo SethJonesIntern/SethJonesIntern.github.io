@@ -99,7 +99,7 @@ global token — 220px at 1x), and the breakpoint `@media (min-width: 40em)`.
 | 11 | built page | `document.title === 'Seth Jones'`; `<meta name="description">` content `=== SITE_DESCRIPTION` | inherited from layout |
 | 12 | built page | `<main>` class list contains `site-main`, `container`, `prose`; `<body>` class list is exactly `site home` | |
 | 13 | built page | nav link `/` has `aria-current="page"`; no other link does | unchanged from issue #1 |
-| 14 | built page | no `<script>` element; `dist/` contains no `.js` asset | zero client JS |
+| 14 | built page | no `<script>` element other than the site-wide nav script `SiteNav.astro` emits (`specs/workshop-unlock.spec.md`); `index.astro` itself contains no `<script>` | no client JS of the page's own (amended by #18; was "no `<script>`, no `.js` asset") |
 | 15 | viewport 400px | `documentElement.scrollWidth <= 400`; `.hero` is single-column (photo box above text); photo rendered width ≤ 364px | 400px AC |
 | 16 | viewport 1280px | `.hero` is two-column; photo occupies the left column at 220px wide | |
 | 17 | `prefers-color-scheme: dark` | hero renders with `--color-bg`/`--color-text` dark mapping; no hero-specific colour override | |
@@ -128,7 +128,7 @@ global token — 220px at 1x), and the breakpoint `@media (min-width: 40em)`.
 | null / undefined | No optional props are introduced. Not applicable, do not test. |
 | duplicate | No duplicate hrefs among the 4 hero links. Do not test. |
 | unordered | Hero link order is the contract (Behavior #4). Test explicitly. |
-| JS disabled | Page is fully functional; identical to JS enabled. Assert only via Behavior #14. |
+| JS disabled | The hero is identical with JS enabled or disabled; the only JS-dependent element on the page is the runtime Workshop nav item of `specs/workshop-unlock.spec.md`, shown only to unlocked visitors. Assert only via Behavior #14. |
 | `prefers-reduced-motion` | No hero animation exists, so nothing to disable. Do not test. |
 | images blocked / `srcset` unsupported | `src` alone renders the 1x webp. Do not test. |
 | print / forced-colors | Undefined, do not test. |
@@ -144,7 +144,8 @@ global token — 220px at 1x), and the breakpoint `@media (min-width: 40em)`.
 3. Exactly one `<h1>` on the page; `BaseLayout` still renders none.
 4. Every hero link href is a member of the `NAV_ITEMS` href set from `src/consts.ts`.
 5. All issue #1 invariants still hold on `/`: one skip link, one header, one `nav aria-label="Main"`,
-   one `main#main-content`, one footer, in that DOM order; zero client JS; no horizontal overflow.
+   one `main#main-content`, one footer, in that DOM order; no client JS beyond the site-wide nav
+   script (`specs/workshop-unlock.spec.md`); no horizontal overflow.
 6. The build emits no copy of the original JPEG to `dist/`.
 
 ## Non-goals
@@ -174,3 +175,6 @@ global token — 220px at 1x), and the breakpoint `@media (min-width: 40em)`.
 4. **Photo crop.** The source is a full 1067×1600 portrait; it is displayed uncropped. Whether a
    tighter head-and-shoulders crop looks better is unverified and would be a new asset, not a
    code change.
+5. **Closed — the zero-JS rows were amended for issue #18.** `specs/workshop-unlock.spec.md` added a
+   site-wide nav script. Behavior #14, the JS-disabled boundary and Invariant 5 now exclude it; the
+   hero itself still ships no script.

@@ -1,6 +1,6 @@
 # Contact Page with Resume Download
 
-Issue: personal-website #8. The contracts in `specs/layout-design-system.spec.md` (#1) and `specs/narrative-pages.spec.md` (#4) still apply: page shape, no new CSS, no client JS.
+Issue: personal-website #8. The contracts in `specs/layout-design-system.spec.md` (#1) and `specs/narrative-pages.spec.md` (#4) still apply: page shape, no new CSS, no client JS of the page's own (the site-wide nav script of `specs/workshop-unlock.spec.md` is not this page's).
 
 ## Purpose
 
@@ -37,7 +37,7 @@ Create only `src/pages/contact.astro`, which builds to `dist/contact/index.html`
 | 11 | `git grep -E '\(?[0-9]{3}\)?[ .-][0-9]{3}[ .-][0-9]{4}' $(git rev-list --all)` | no output | phone AC, text history |
 | 12 | `git log --all --format=%H -- "New folder"` | no output | the original resume was never committed |
 | 13 | `dom` | nav link `/contact/` has `aria-current="page"` and `is-active`; no other nav link does | |
-| 14 | `dom`; all of `dist/` | no `<script>` element on the page; no `.js` file in `dist/` | zero JS |
+| 14 | `dom`; source | no `<script>` element on the page other than the site-wide nav script `SiteNav.astro` emits (`specs/workshop-unlock.spec.md`); `contact.astro` contains no `<script>` | no JS of the page's own (amended by #18; was "no `<script>`, no `.js` file in `dist/`") |
 
 ## Boundaries
 
@@ -62,3 +62,4 @@ Create only `src/pages/contact.astro`, which builds to `dist/contact/index.html`
 1. All copy is Seth's draft. Change it here first; tests assert these strings.
 2. The phone check in the PDF cannot be automated because the streams are compressed and the project has no PDF parser. Seth should confirm by hand that the number was removed from the text layer, not just covered with a box.
 3. Should GitHub, now confirmed by this issue, also go into `FOOTER_LINKS`? This is out of scope here.
+4. Closed: the header line and Behavior 14 were amended for issue #18, which added a site-wide nav script (`specs/workshop-unlock.spec.md`). The page itself still ships no script.
