@@ -47,11 +47,15 @@ README.md               (replace Astro template boilerplate)
 ```
 astro.config.mjs
 tsconfig.json
-public/favicon.svg
-public/favicon.ico
 src/assets/seth-ucf-grad.jpg
 .gitignore
 ```
+
+The scaffold favicons were on this list for the scope of issue #1. They left it later: the site
+icon is now the UCF Pegasus mark, cropped square from `src/assets/ucf-mark.png`. `public/favicon.svg`
+(the Astro template logo) is deleted, `public/favicon.ico` is regenerated, and
+`public/favicon-32.png`, `public/favicon-192.png` and `public/apple-touch-icon.png` are added. See
+the head structure below.
 
 ### `src/consts.ts`
 
@@ -127,8 +131,10 @@ Required document structure (exact attribute values; attribute order is not cont
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32" />
+    <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/favicon-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title><!-- composed, see Behavior #1-#4 --></title>
     <meta name="description" content="<!-- resolved, see Behavior #5-#7 -->" />
     <!-- emitted ONLY when noindex is true; see Behavior #42-#44 -->
