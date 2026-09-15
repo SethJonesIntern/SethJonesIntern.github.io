@@ -2,11 +2,11 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import {
   assertUniqueBookIds,
+  assertVariedSpines,
   bookAnchorId,
   groupByShelf,
   shelfHeadingId,
   spineClass,
-  spineLabel,
 } from '../lib/reading';
 import { READING_LIST } from '../lib/reading-books';
 
@@ -14,6 +14,9 @@ import { READING_LIST } from '../lib/reading-books';
 assertUniqueBookIds(READING_LIST);
 
 const shelves = groupByShelf(READING_LIST);
+
+// Two neighbouring spines in the same colour read as one fat book; fail the build.
+shelves.forEach((group) => assertVariedSpines(group.books));
 ---
 
 <BaseLayout
@@ -33,7 +36,7 @@ const shelves = groupByShelf(READING_LIST);
               id={bookAnchorId(book.id)}
               data-book-id={book.id}
             >
-              <span class="shelf__title">{spineLabel(book)}</span>
+              <span class="shelf__title">{book.title}</span>
               <span class="shelf__author">{book.author}</span>
             </li>
           ))}
@@ -51,22 +54,28 @@ const shelves = groupByShelf(READING_LIST);
   .shelf__list {
     list-style: none;
     padding: 0;
-    padding-block-end: var(--space-2xs);
     margin-block-start: var(--space-md);
     display: flex;
     flex-wrap: wrap;
-    /* Spines of differing height stand on one baseline: the shelf board. */
+    /* `align-items` applies per flex line, so each wrapped row of spines stands
+       on its own baseline. With fifteen fiction spines that is the normal case
+       at every viewport width, not a phone-only fallback. */
     align-items: flex-end;
-    gap: var(--space-sm) var(--space-2xs);
-    border-block-end: var(--border-thick) solid var(--color-border-strong);
+    align-content: flex-start;
+    /* No column gap: books on a shelf touch. Each spine's own foot then joins
+       its neighbours' into one continuous board line under every row, without a
+       wrapper element per row. */
+    column-gap: 0;
+    row-gap: var(--space-lg);
   }
 
-  /* The spine's own writing mode swaps the logical axes, so its geometry is
-     stated in physical properties on purpose: `max-height` caps the length of
-     the vertical text line, and a title too long for it wraps to a second line,
-     which widens the spine instead of lengthening it — which is what a thick
-     book looks like. `flex: none` makes a spine wrap to the next row rather
-     than be squashed below its natural width. */
+  /* The spine's own writing mode swaps the logical axes, so its geometry and its
+     foot are stated in PHYSICAL properties on purpose: in `vertical-rl`,
+     `border-block-end` would paint the left edge, not the bottom one. `max-height`
+     caps the length of the vertical text line, and a title too long for it wraps
+     to a second line, which widens the spine instead of lengthening it — which is
+     what a thick book looks like. `flex: none` makes a spine wrap to the next row
+     rather than be squashed below its natural width. */
   .shelf__book {
     writing-mode: vertical-rl;
     display: flex;
@@ -81,6 +90,7 @@ const shelves = groupByShelf(READING_LIST);
     max-width: 100%;
     padding: var(--space-2xs) var(--space-3xs);
     border: var(--border-thin) solid var(--color-border-strong);
+    border-bottom: var(--border-thick) solid var(--color-border-strong);
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-sm);
     transition:

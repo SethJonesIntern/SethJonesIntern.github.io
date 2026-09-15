@@ -1,7 +1,9 @@
 import type { Book } from './reading';
 
 // The shelf, in render order: shelf groups follow SHELVES, books follow this array.
-// To add a book, append one entry here. Nothing else in the repo needs editing.
+// One entry is one book — a series is several spines, not one. To add a book,
+// append one entry here; nothing else in the repo needs editing. Pick a `spine`
+// that differs from the entry above it on the same shelf (see spec Invariant 3).
 export const READING_LIST: readonly Book[] = [
   {
     id: 'mythical-man-month',
@@ -25,34 +27,108 @@ export const READING_LIST: readonly Book[] = [
     spine: 'sand',
   },
   {
-    id: 'harry-potter',
-    title: 'Harry Potter',
+    id: 'harry-potter-sorcerers-stone',
+    title: 'Harry Potter and the Sorcerer’s Stone',
     author: 'J. K. Rowling',
     shelf: 'fiction',
     spine: 'clay',
-    volumes: [1, 7],
+  },
+  {
+    id: 'harry-potter-chamber-of-secrets',
+    title: 'Harry Potter and the Chamber of Secrets',
+    author: 'J. K. Rowling',
+    shelf: 'fiction',
+    spine: 'teal',
+  },
+  {
+    id: 'harry-potter-prisoner-of-azkaban',
+    title: 'Harry Potter and the Prisoner of Azkaban',
+    author: 'J. K. Rowling',
+    shelf: 'fiction',
+    spine: 'ink',
+  },
+  {
+    id: 'harry-potter-goblet-of-fire',
+    title: 'Harry Potter and the Goblet of Fire',
+    author: 'J. K. Rowling',
+    shelf: 'fiction',
+    spine: 'sand',
+  },
+  {
+    id: 'harry-potter-order-of-the-phoenix',
+    title: 'Harry Potter and the Order of the Phoenix',
+    author: 'J. K. Rowling',
+    shelf: 'fiction',
+    spine: 'teal',
+  },
+  {
+    id: 'harry-potter-half-blood-prince',
+    title: 'Harry Potter and the Half-Blood Prince',
+    author: 'J. K. Rowling',
+    shelf: 'fiction',
+    spine: 'clay',
+  },
+  {
+    id: 'harry-potter-deathly-hallows',
+    title: 'Harry Potter and the Deathly Hallows',
+    author: 'J. K. Rowling',
+    shelf: 'fiction',
+    spine: 'sand',
+  },
+  {
+    id: 'a-game-of-thrones',
+    title: 'A Game of Thrones',
+    author: 'George R. R. Martin',
+    shelf: 'fiction',
+    spine: 'ink',
+  },
+  {
+    id: 'a-clash-of-kings',
+    title: 'A Clash of Kings',
+    author: 'George R. R. Martin',
+    shelf: 'fiction',
+    spine: 'clay',
   },
   {
     id: 'fire-and-blood',
     title: 'Fire & Blood',
     author: 'George R. R. Martin',
     shelf: 'fiction',
+    spine: 'sand',
+  },
+  {
+    id: 'the-lightning-thief',
+    title: 'The Lightning Thief',
+    author: 'Rick Riordan',
+    shelf: 'fiction',
+    spine: 'teal',
+  },
+  {
+    id: 'the-sea-of-monsters',
+    title: 'The Sea of Monsters',
+    author: 'Rick Riordan',
+    shelf: 'fiction',
     spine: 'ink',
   },
   {
-    id: 'a-song-of-ice-and-fire',
-    title: 'A Song of Ice and Fire',
-    author: 'George R. R. Martin',
-    shelf: 'fiction',
-    spine: 'teal',
-    volumes: [1, 2],
-  },
-  {
-    id: 'percy-jackson-and-the-olympians',
-    title: 'Percy Jackson and the Olympians',
+    id: 'the-titans-curse',
+    title: 'The Titan’s Curse',
     author: 'Rick Riordan',
     shelf: 'fiction',
     spine: 'sand',
-    volumes: [1, 5],
+  },
+  {
+    id: 'the-battle-of-the-labyrinth',
+    title: 'The Battle of the Labyrinth',
+    author: 'Rick Riordan',
+    shelf: 'fiction',
+    spine: 'clay',
+  },
+  {
+    id: 'the-last-olympian',
+    title: 'The Last Olympian',
+    author: 'Rick Riordan',
+    shelf: 'fiction',
+    spine: 'teal',
   },
 ];

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { assertUniqueBookIds, type Book } from '../src/lib/reading';
 import { READING_LIST } from '../src/lib/reading-books';
 
-// Covers specs/reading.spec.md Behavior rows 35-38, both `assertUniqueBookIds`
+// Covers specs/reading.spec.md Behavior rows 23-26, both `assertUniqueBookIds`
 // rows of the Errors table, and the Boundaries rows "duplicate ids" and
 // "max - list length".
 
@@ -31,17 +31,17 @@ function thrownBy(fn: () => unknown): unknown {
 
 describe('assertUniqueBookIds accepts a clean list', () => {
   it('returns undefined for the empty list', () => {
-    // Behavior 35
+    // Behavior 23
     expect(assertUniqueBookIds([])).toBeUndefined();
   });
 
   it('returns undefined for three distinct ids', () => {
-    // Behavior 36
+    // Behavior 24
     expect(assertUniqueBookIds([book('a'), book('b'), book('c')])).toBeUndefined();
   });
 
   it('returns undefined for the shipped READING_LIST', () => {
-    // Behavior 37
+    // Behavior 25 - all 18 ids distinct
     expect(assertUniqueBookIds(READING_LIST)).toBeUndefined();
   });
 
@@ -53,7 +53,7 @@ describe('assertUniqueBookIds accepts a clean list', () => {
   });
 
   it('does not reorder or replace the elements it scanned', () => {
-    // Behavior 38 - never sorts or mutates
+    // Behavior 26 - never sorts or mutates
     const first = book('b');
     const second = book('a');
     const xs = [first, second];
@@ -72,7 +72,8 @@ describe('assertUniqueBookIds accepts a clean list', () => {
 
 describe('assertUniqueBookIds rejects a repeated id with a TypeError', () => {
   it('throws naming the repeated id', () => {
-    // Errors: assertUniqueBookIds([book('fire'), book('fire')])
+    // Errors: assertUniqueBookIds([book('fire'), book('fire')]),
+    // Boundaries "duplicate ids"
     const error = thrownBy(() => assertUniqueBookIds([book('fire'), book('fire')]));
     expect(error).toBeInstanceOf(TypeError);
     expect((error as Error).message).toBe('assertUniqueBookIds: duplicate book id "fire"');

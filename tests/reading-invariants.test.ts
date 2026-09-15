@@ -1,18 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertVariedSpines,
   bookAnchorId,
   booksOnShelf,
-  formatVolumes,
   groupByShelf,
   isBookId,
   isShelf,
   isSpineVariant,
-  spineLabel,
   type Book,
   type Shelf,
   type SpineVariant,
-  type VolumeRange,
 } from '../src/lib/reading';
 import { READING_LIST } from '../src/lib/reading-books';
 
@@ -26,24 +24,31 @@ import { READING_LIST } from '../src/lib/reading-books';
 //      a claim about src/pages/reading.astro, which a test may not import.
 //   11 each new token declared twice (light + dark) - a claim about
 //      src/styles/tokens.css, which a test may not import.
-//   12 one hover rule, no per-spine override - CSS, Behavior 70, review-only.
-//   13 zero client-side JavaScript - Behavior 73, verified against dist/.
-//   14 the rotation changes no semantics - rendered DOM, Behavior 59-63.
-//   15 scrollWidth never exceeds the viewport - Behavior 72, a browser check.
+//   12 one hover rule, no per-spine override - CSS, Behavior 67, review-only.
+//   13 zero client-side JavaScript - Behavior 70, verified against dist/.
+//   14 the rotation changes no semantics - rendered DOM, Behavior 54-58.
+//   15 scrollWidth never exceeds the viewport - Behavior 69, a browser check.
 //   16 NAV_ITEMS holds /reading/ once at index 6 - the spec's test contract
-//      forbids importing src/consts.ts; Behavior 57 is the review criterion.
+//      forbids importing src/consts.ts; Behavior 52 is the review criterion.
+//
+// Invariant 3's stronger half (every block of four on a shelf uses all four
+// variants) is asserted against the shipped data in
+// tests/reading-varied-spines.test.ts; the spec calls it an authoring
+// convention "checked by review", so it is not generated over here.
 //
 // Boundaries rows deliberately left untested across the whole reading suite,
 // with the spec's reason:
 //   empty READING_LIST, page state - "the page state is unreachable, do not
 //     test it"; only groupByShelf([]) is tested (reading-grouping.test.ts).
 //   empty title/author at the page level - "Undefined at the page level".
-//   max - title length on a spine - "Review-only".
-//   null / undefined / non-array to assertUniqueBookIds, booksOnShelf,
-//     groupByShelf - "Undefined, do not test".
+//   zero / negative / numeric inputs - "No function in this feature takes a
+//     number. Undefined, do not test."
+//   max - shelf length on screen, max - title length on a spine - "Review-only".
+//   null / undefined / non-array to assertUniqueBookIds, assertVariedSpines,
+//     booksOnShelf, groupByShelf - "Undefined, do not test".
 //   viewport minimum below 320px - "Undefined, do not test".
 //   viewport maximum, prefers-reduced-motion, JavaScript disabled - browser
-//     checks (Behavior 71-73), outside a Vitest unit suite under this spec's
+//     checks (Behavior 68-70), outside a Vitest unit suite under this spec's
 //     test contract.
 //   forced-colors, print stylesheet, RTL - "Undefined, do not test".
 //   touch devices with no hover - "Undefined, do not test".
@@ -59,12 +64,6 @@ import { READING_LIST } from '../src/lib/reading-books';
 const SPEC_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SPEC_SHELVES = ['technical', 'fiction'] as const;
 const SPEC_SPINE_VARIANTS = ['clay', 'teal', 'ink', 'sand'] as const;
-
-/** The spec's volume wording: `Book 3` when [3, 3], `Books 1–7` otherwise (U+2013). */
-function specFormatVolumes(volumes: VolumeRange): string {
-  const [first, last] = volumes;
-  return first === last ? `Book ${first}` : `Books ${first}–${last}`;
-}
 
 function makeRng(seed: number): () => number {
   let state = seed >>> 0;
@@ -106,22 +105,22 @@ function randomValidId(rng: () => number): string {
   return parts.join('-');
 }
 
-const TITLES = ['Fire & Blood', 'Harry Potter', 'Ω 😀', 'A', 'Kästner: From Models'] as const;
+const TITLES = [
+  'Fire & Blood',
+  'The Titan’s Curse',
+  'Ω 😀',
+  'A',
+  'Machine Learning in Production: From Models to Products',
+] as const;
 
 function randomBook(rng: () => number, id: string): Book {
-  const base = {
+  return {
     id,
     title: pick(rng, TITLES),
     author: 'A',
     shelf: pick(rng, SPEC_SHELVES) as Shelf,
     spine: pick(rng, SPEC_SPINE_VARIANTS) as SpineVariant,
   };
-  if (rng() < 0.4) {
-    const first = 1 + Math.floor(rng() * 9);
-    const last = first + Math.floor(rng() * 9);
-    return { ...base, volumes: [first, last] as VolumeRange };
-  }
-  return base;
 }
 
 function randomBooks(rng: () => number, size: number): Book[] {
@@ -247,40 +246,89 @@ describe('Invariant 2: bookAnchorId either prefixes or throws, with no third out
   });
 });
 
-describe('Invariant 3: spineLabel is the title, plus the volume range when present', () => {
-  it('starts with the book title on 400 generated books', () => {
-    const rng = makeRng(0x1abe);
-    for (let i = 0; i < 400; i += 1) {
-      const b = randomBook(rng, `b${i}`);
-      expect(spineLabel(b).startsWith(b.title)).toBe(true);
+describe('Invariant 3: no two consecutive books on a shelf share a spine variant', () => {
+  /**
+   * The spec's rule, restated locally: the first book whose `spine` equals its
+   * predecessor's, or null. Reads the generated fixture only; it never calls
+   * the module under test.
+   */
+  function specFirstRepeat(books: readonly Book[]): Book | null {
+    for (let i = 1; i < books.length; i += 1) {
+      const previous = books[i - 1] as Book;
+      const current = books[i] as Book;
+      if (current.spine === previous.spine) return current;
     }
-  });
+    return null;
+  }
 
-  it('equals the title exactly when volumes are absent', () => {
-    const rng = makeRng(0x2abe);
-    for (let i = 0; i < 400; i += 1) {
-      const b = randomBook(rng, `b${i}`);
-      if (b.volumes === undefined) {
-        expect(spineLabel(b)).toBe(b.title);
+  it('throws exactly when a consecutive pair repeats, on 500 generated shelves', () => {
+    const rng = makeRng(0x591e);
+    for (let i = 0; i < 500; i += 1) {
+      const xs = randomBooks(rng, Math.floor(rng() * 9));
+      const offender = specFirstRepeat(xs);
+      let caught: unknown = null;
+      let returned: unknown = 'not-called';
+      try {
+        returned = assertVariedSpines(xs);
+      } catch (error) {
+        caught = error;
+      }
+      if (offender === null) {
+        expect(caught).toBeNull();
+        expect(returned).toBeUndefined();
+      } else {
+        expect(caught).toBeInstanceOf(TypeError);
+        expect((caught as Error).message).toBe(
+          `assertVariedSpines: "${offender.id}" repeats the spine variant "${offender.spine}"`,
+        );
       }
     }
   });
 
-  it('equals `title, Book(s) range` when volumes are present', () => {
-    const rng = makeRng(0x3abe);
-    for (let i = 0; i < 400; i += 1) {
-      const b = randomBook(rng, `b${i}`);
-      if (b.volumes !== undefined) {
-        expect(spineLabel(b)).toBe(`${b.title}, ${specFormatVolumes(b.volumes)}`);
+  it('accepts every shelf built by cycling the four variants, up to 40 books', () => {
+    for (let size = 0; size <= 40; size += 1) {
+      const xs: Book[] = [];
+      for (let i = 0; i < size; i += 1) {
+        xs.push({
+          id: `b${i}`,
+          title: 'T',
+          author: 'A',
+          shelf: 'technical',
+          spine: SPEC_SPINE_VARIANTS[i % 4] as SpineVariant,
+        });
       }
+      expect(assertVariedSpines(xs)).toBeUndefined();
     }
   });
 
-  it('matches the spec wording for every valid range up to 12 volumes', () => {
-    for (let first = 1; first <= 12; first += 1) {
-      for (let last = first; last <= 12; last += 1) {
-        expect(formatVolumes([first, last])).toBe(specFormatVolumes([first, last]));
+  it('rejects a shelf of any length whose first two books share a variant', () => {
+    for (let size = 2; size <= 20; size += 1) {
+      const xs: Book[] = [];
+      for (let i = 0; i < size; i += 1) {
+        xs.push({
+          id: `b${i}`,
+          title: 'T',
+          author: 'A',
+          shelf: 'technical',
+          spine: i < 2 ? 'clay' : (SPEC_SPINE_VARIANTS[i % 4] as SpineVariant),
+        });
       }
+      let caught: unknown = null;
+      try {
+        assertVariedSpines(xs);
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(TypeError);
+      expect((caught as Error).message).toBe(
+        'assertVariedSpines: "b1" repeats the spine variant "clay"',
+      );
+    }
+  });
+
+  it('leaves every shipped shelf group free of a consecutive repeat', () => {
+    for (const group of groupByShelf(READING_LIST)) {
+      expect(specFirstRepeat(group.books)).toBeNull();
     }
   });
 });
@@ -349,6 +397,32 @@ describe('Invariant 4: the helpers are pure and never mutate or alias their inpu
       );
       if (first.length > 0) {
         expect(second).not.toBe(first);
+      }
+    }
+  });
+
+  it('leaves the input array of assertVariedSpines untouched', () => {
+    const rng = makeRng(0x5a1e);
+    for (let i = 0; i < 200; i += 1) {
+      // Build a run-free shelf so the call returns rather than throws.
+      const size = Math.floor(rng() * 6);
+      const xs: Book[] = [];
+      for (let j = 0; j < size; j += 1) {
+        xs.push({
+          id: `b${j}`,
+          title: 'T',
+          author: 'A',
+          shelf: 'technical',
+          spine: SPEC_SPINE_VARIANTS[j % 4] as SpineVariant,
+        });
+      }
+      const before = [...xs];
+      const beforeSpines = xs.map((b) => b.spine);
+      assertVariedSpines(xs);
+      expect(xs).toHaveLength(before.length);
+      expect(xs.map((b) => b.spine)).toEqual(beforeSpines);
+      for (let index = 0; index < before.length; index += 1) {
+        expect(xs[index]).toBe(before[index]);
       }
     }
   });
@@ -425,7 +499,7 @@ describe('Invariant 6: every shipped id matches the pattern and is unique', () =
 
   it('yields a distinct DOM id per entry of READING_LIST', () => {
     const anchors = READING_LIST.map((b) => bookAnchorId(b.id));
-    expect(new Set(anchors).size).toBe(READING_LIST.length);
+    expect(new Set(anchors).size).toBe(18);
   });
 });
 

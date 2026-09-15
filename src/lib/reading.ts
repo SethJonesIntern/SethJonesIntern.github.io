@@ -21,13 +21,10 @@ export const SPINE_VARIANTS = ['clay', 'teal', 'ink', 'sand'] as const;
 
 export type SpineVariant = (typeof SPINE_VARIANTS)[number];
 
-/** Inclusive volume range for a multi-volume series: [first, last], 1-based integers. */
-export type VolumeRange = readonly [number, number];
-
 export interface Book {
   /** Stable kebab-case slug, unique within READING_LIST. Matches BOOK_ID_PATTERN. */
   readonly id: string;
-  /** Title as printed, without any volume range. */
+  /** The book's own title, as printed on its cover. One book, one entry. */
   readonly title: string;
   /** Author line as displayed, e.g. 'J. K. Rowling'. */
   readonly author: string;
@@ -35,8 +32,6 @@ export interface Book {
   readonly shelf: Shelf;
   /** Which spine colour the book is bound in. */
   readonly spine: SpineVariant;
-  /** Present only for a multi-volume series read as one entry. Omit for a single book. */
-  readonly volumes?: VolumeRange;
 }
 
 export interface ShelfGroup {
@@ -49,11 +44,6 @@ export interface ShelfGroup {
 
 /** Lowercase kebab-case: ASCII alphanumeric runs joined by single hyphens. No `g` flag. */
 export const BOOK_ID_PATTERN: RegExp = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-/** A volume number: a finite, 1-based integer. Rejects NaN and Infinity by construction. */
-function isVolumeNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 1;
-}
 
 /** Runtime guard for unvalidated values. True only for strings matching BOOK_ID_PATTERN. */
 export function isBookId(value: unknown): value is string {
@@ -97,31 +87,6 @@ export function spineClass(variant: SpineVariant): string {
   return `shelf__book--${variant}`;
 }
 
-/** '' when absent, `Book 3` when [3, 3], `Books 1–7` otherwise. Throws TypeError on a bad range. */
-export function formatVolumes(volumes: VolumeRange | undefined): string {
-  if (volumes === undefined) return '';
-
-  // Read through `unknown` so a value that is not really a [number, number]
-  // reports itself in the message rather than throwing from somewhere else.
-  const range = volumes as readonly unknown[] | null | undefined;
-  const first: unknown = range ? range[0] : undefined;
-  const last: unknown = range ? range[1] : undefined;
-
-  if (!isVolumeNumber(first) || !isVolumeNumber(last) || last < first) {
-    throw new TypeError(`formatVolumes: invalid volume range [${String(first)}, ${String(last)}]`);
-  }
-
-  // The separator is U+2013 EN DASH, not a hyphen.
-  return first === last ? `Book ${first}` : `Books ${first}–${last}`;
-}
-
-/** The spine's printed label: the title, plus `, ` and formatVolumes(book.volumes) when present. */
-export function spineLabel(book: Book): string {
-  if (book.volumes === undefined) return book.title;
-  // A bad range propagates unchanged: neither caught nor rewrapped.
-  return `${book.title}, ${formatVolumes(book.volumes)}`;
-}
-
 /** Throws TypeError on the first repeated `id`, scanning in declaration order. Returns void. */
 export function assertUniqueBookIds(books: readonly Book[]): void {
   // Scanned in declaration order so the reported duplicate is the first repeat,
@@ -134,6 +99,24 @@ export function assertUniqueBookIds(books: readonly Book[]): void {
       throw new TypeError(`assertUniqueBookIds: duplicate book id "${String(id)}"`);
     }
     seen.add(id);
+  }
+}
+
+/** Throws TypeError on the first book whose `spine` equals the previous book's. Returns void. */
+export function assertVariedSpines(books: readonly Book[]): void {
+  // Neighbours only: reusing a variant further along the shelf is expected with
+  // four variants and fifteen books. The message names the *second* book of the
+  // offending pair, because that is the entry whose variant needs changing.
+  // Validates `spine` alone; `id` is read only to name the offender. Neither id
+  // syntax nor shelf membership is this check's job — the caller passes one shelf.
+  for (let index = 1; index < books.length; index += 1) {
+    const previous = books[index - 1];
+    const current = books[index];
+    if (previous !== undefined && current !== undefined && current.spine === previous.spine) {
+      const id = String(current.id);
+      const spine = String(current.spine);
+      throw new TypeError(`assertVariedSpines: "${id}" repeats the spine variant "${spine}"`);
+    }
   }
 }
 

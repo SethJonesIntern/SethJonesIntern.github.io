@@ -34,12 +34,12 @@ function thrownBy(fn: () => unknown): unknown {
 describe('bookAnchorId', () => {
   it('prefixes a hyphenated id', () => {
     // Behavior 18
-    expect(bookAnchorId('harry-potter')).toBe('book-harry-potter');
+    expect(bookAnchorId('the-last-olympian')).toBe('book-the-last-olympian');
   });
 
-  it('prefixes a three-run id without collapsing its hyphens', () => {
+  it('prefixes a five-run id without collapsing its hyphens', () => {
     // Behavior 19
-    expect(bookAnchorId('fire-and-blood')).toBe('book-fire-and-blood');
+    expect(bookAnchorId('harry-potter-goblet-of-fire')).toBe('book-harry-potter-goblet-of-fire');
   });
 
   it('prefixes a 200-character id, since id length is uncapped', () => {
@@ -55,10 +55,10 @@ describe('bookAnchorId', () => {
   });
 
   it('throws a TypeError on an uppercase id', () => {
-    // Errors: bookAnchorId('Harry-Potter')
-    const error = thrownBy(() => bookAnchorId('Harry-Potter'));
+    // Errors: bookAnchorId('The-Last-Olympian')
+    const error = thrownBy(() => bookAnchorId('The-Last-Olympian'));
     expect(error).toBeInstanceOf(TypeError);
-    expect((error as Error).message).toBe('bookAnchorId: invalid book id "Harry-Potter"');
+    expect((error as Error).message).toBe('bookAnchorId: invalid book id "The-Last-Olympian"');
   });
 
   it('throws a TypeError on a padded id rather than trimming it', () => {

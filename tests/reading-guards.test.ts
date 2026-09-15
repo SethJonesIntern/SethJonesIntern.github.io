@@ -9,7 +9,7 @@ import { isBookId, isShelf, isSpineVariant } from '../src/lib/reading';
 describe('isBookId', () => {
   it('accepts a hyphenated kebab-case id', () => {
     // Behavior 1
-    expect(isBookId('harry-potter')).toBe(true);
+    expect(isBookId('the-last-olympian')).toBe(true);
   });
 
   it('accepts a single alphanumeric run', () => {
@@ -24,7 +24,7 @@ describe('isBookId', () => {
 
   it('rejects an uppercase id rather than lowercasing it', () => {
     // Behavior 4
-    expect(isBookId('Harry-Potter')).toBe(false);
+    expect(isBookId('The-Last-Olympian')).toBe(false);
   });
 
   it('rejects an id containing a space', () => {
@@ -70,6 +70,12 @@ describe('isBookId', () => {
   it('rejects a slash separator', () => {
     // Behavior 7
     expect(isBookId('fire/blood')).toBe(false);
+  });
+
+  it('rejects a curly apostrophe rather than encoding it', () => {
+    // Behavior 7, Boundaries "unicode in ids": the apostrophe in
+    // `The Titan’s Curse` is dropped to form `the-titans-curse`, never encoded.
+    expect(isBookId('titan’s-curse')).toBe(false);
   });
 
   it('rejects a latin letter with a diaeresis', () => {
