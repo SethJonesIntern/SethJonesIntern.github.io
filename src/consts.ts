@@ -23,6 +23,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/teaching/', label: 'Teaching' },
   { href: '/projects/', label: 'Projects' },
   { href: '/blog/', label: 'Blog' },
+  { href: '/reading/', label: 'Reading' },
   { href: '/contact/', label: 'Contact' },
 ];
 

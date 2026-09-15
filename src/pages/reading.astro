@@ -1,0 +1,147 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  assertUniqueBookIds,
+  assertVariedSpines,
+  bookAnchorId,
+  groupByShelf,
+  shelfHeadingId,
+  spineClass,
+} from '../lib/reading';
+import { READING_LIST } from '../lib/reading-books';
+
+// A duplicate id would emit duplicate DOM ids; fail the build instead.
+assertUniqueBookIds(READING_LIST);
+
+const shelves = groupByShelf(READING_LIST);
+
+// Two neighbouring spines in the same colour read as one fat book; fail the build.
+shelves.forEach((group) => assertVariedSpines(group.books));
+---
+
+<BaseLayout
+  title="Reading"
+  description="Books Seth Jones has read recently, from software engineering to fantasy."
+>
+  <h1>Reading</h1>
+  <p>A shelf of what I have read lately — some of it for work, most of it not. It is not a review page: if a book is here, it earned a spine.</p>
+  {
+    shelves.map((group) => (
+      <section class="shelf" aria-labelledby={shelfHeadingId(group.shelf)}>
+        <h2 id={shelfHeadingId(group.shelf)}>{group.label}</h2>
+        <ul class="shelf__list" role="list">
+          {group.books.map((book) => (
+            <li
+              class={`shelf__book ${spineClass(book.spine)}`}
+              id={bookAnchorId(book.id)}
+              data-book-id={book.id}
+            >
+              <span class="shelf__title">{book.title}</span>
+              <span class="shelf__author">{book.author}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+</BaseLayout>
+
+<style>
+  .shelf + .shelf {
+    margin-block-start: var(--space-xl);
+  }
+
+  .shelf__list {
+    list-style: none;
+    padding: 0;
+    margin-block-start: var(--space-md);
+    display: flex;
+    flex-wrap: wrap;
+    /* `align-items` applies per flex line, so each wrapped row of spines stands
+       on its own baseline. With fifteen fiction spines that is the normal case
+       at every viewport width, not a phone-only fallback. */
+    align-items: flex-end;
+    align-content: flex-start;
+    /* No column gap: books on a shelf touch. Each spine's own foot then joins
+       its neighbours' into one continuous board line under every row, without a
+       wrapper element per row. */
+    column-gap: 0;
+    row-gap: var(--space-lg);
+  }
+
+  /* The spine's own writing mode swaps the logical axes, so its geometry and its
+     foot are stated in PHYSICAL properties on purpose: in `vertical-rl`,
+     `border-block-end` would paint the left edge, not the bottom one. `max-height`
+     caps the length of the vertical text line, and a title too long for it wraps
+     to a second line, which widens the spine instead of lengthening it — which is
+     what a thick book looks like. `flex: none` makes a spine wrap to the next row
+     rather than be squashed below its natural width. */
+  .shelf__book {
+    writing-mode: vertical-rl;
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3xs);
+    min-height: var(--shelf-spine-height-min);
+    max-height: var(--shelf-spine-height-max);
+    min-width: var(--shelf-spine-width-min);
+    max-width: 100%;
+    padding: var(--space-2xs) var(--space-3xs);
+    border: var(--border-thin) solid var(--color-border-strong);
+    border-bottom: var(--border-thick) solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    transition:
+      transform var(--duration-base) var(--ease-standard),
+      box-shadow var(--duration-base) var(--ease-standard);
+  }
+
+  .shelf__book:hover {
+    transform: translateY(calc(-1 * var(--space-2xs)));
+    box-shadow: var(--shadow-md);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shelf__book {
+      transition: none;
+    }
+
+    .shelf__book:hover {
+      transform: none;
+    }
+  }
+
+  .shelf__title {
+    font-family: var(--font-serif);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    line-height: var(--leading-snug);
+  }
+
+  .shelf__author {
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-wide);
+  }
+
+  .shelf__book--clay {
+    background: var(--color-spine-clay-bg);
+    color: var(--color-spine-clay-text);
+  }
+
+  .shelf__book--teal {
+    background: var(--color-spine-teal-bg);
+    color: var(--color-spine-teal-text);
+  }
+
+  .shelf__book--ink {
+    background: var(--color-spine-ink-bg);
+    color: var(--color-spine-ink-text);
+  }
+
+  .shelf__book--sand {
+    background: var(--color-spine-sand-bg);
+    color: var(--color-spine-sand-text);
+  }
+</style>

@@ -76,6 +76,11 @@
   --z-header: 10;
   --z-skip-link: 100;
 
+  /* Bookshelf spine geometry */
+  --shelf-spine-height-min: clamp(8rem, 5rem + 10vw, 10.5rem);
+  --shelf-spine-height-max: clamp(11rem, 6rem + 16vw, 16rem);
+  --shelf-spine-width-min: 2.5rem;
+
   /* Warm-grey neutrals */
   --color-transparent: transparent;
   --color-white: #ffffff;
@@ -127,6 +132,14 @@
   --color-selection-bg: var(--color-teal-100);
   --color-selection-text: var(--color-ink-900);
   --color-mark-plate: var(--color-transparent);
+  --color-spine-clay-bg: var(--color-clay-900);
+  --color-spine-clay-text: var(--color-ink-50);
+  --color-spine-teal-bg: var(--color-teal-900);
+  --color-spine-teal-text: var(--color-ink-50);
+  --color-spine-ink-bg: var(--color-ink-700);
+  --color-spine-ink-text: var(--color-ink-50);
+  --color-spine-sand-bg: var(--color-ink-400);
+  --color-spine-sand-text: var(--color-ink-950);
   --shadow-sm: 0 1px 2px rgba(28, 25, 20, 0.06), 0 1px 3px rgba(28, 25, 20, 0.08);
   --shadow-md: 0 2px 4px rgba(28, 25, 20, 0.06), 0 8px 24px rgba(28, 25, 20, 0.1);
 }
@@ -155,6 +168,14 @@
     --color-selection-bg: var(--color-teal-900);
     --color-selection-text: var(--color-ink-50);
     --color-mark-plate: var(--color-ink-50);
+    --color-spine-clay-bg: var(--color-clay-700);
+    --color-spine-clay-text: var(--color-ink-50);
+    --color-spine-teal-bg: var(--color-teal-700);
+    --color-spine-teal-text: var(--color-ink-50);
+    --color-spine-ink-bg: var(--color-ink-600);
+    --color-spine-ink-text: var(--color-ink-50);
+    --color-spine-sand-bg: var(--color-ink-300);
+    --color-spine-sand-text: var(--color-ink-950);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
   }

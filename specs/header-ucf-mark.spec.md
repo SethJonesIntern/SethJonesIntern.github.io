@@ -135,7 +135,11 @@ applied to the mark itself — no opacity shift, no filter; the existing brand-t
 ## Non-goals
 
 - Editing, cropping, recolouring, or vectorising `ucf-mark.png`; shipping a second light/dark asset.
-- Putting the mark in the footer, favicon, Open Graph image, or any page body.
+- Putting the mark in the footer, Open Graph image, or any page body. (The favicon was on this list
+  for the scope of this issue. It left it later, at Seth's request: the site icon is now the Pegasus
+  cropped square from the same `ucf-mark.png`, pinned in the head structure in
+  `specs/layout-design-system.spec.md`. The mark is still not permitted in the footer or a page
+  body, and this spec's own header contract is unchanged.)
 - A link to ucf.edu, a tooltip/`title` attribute, or any UCF attribution text.
 - Making the header sticky, changing its background, or touching `SiteNav`/`BaseLayout`.
 - A test suite, visual-regression snapshots, or bundle-size assertions.
@@ -146,7 +150,7 @@ applied to the mark itself — no opacity shift, no filter; the existing brand-t
    as a personal affiliation mark is the user's call; flag before publishing, do not block the build.
 2. **Closed — the token enumeration was extended, not left a subset.**
    `specs/layout-design-system.spec.md` now lists `--color-transparent` in its Layer 1 primitives
-   table and `--color-mark-plate` in its Layer 2 semantic table, states 22 semantic tokens in the
+   table and `--color-mark-plate` in its Layer 2 semantic table, states 30 semantic tokens in the
    dark-scheme mechanism, and its Behavior #30 names both additions (primitive declared once,
    semantic declared twice). The "semantic names appear exactly twice, primitives exactly once"
    rule holds for both, and that spec's enumeration is complete against `src/styles/tokens.css`.

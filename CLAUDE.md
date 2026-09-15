@@ -12,7 +12,7 @@ Personal site for Seth Jones. Astro 7 + TypeScript strict, static output, deploy
 
 ## Layout
 
-- `src/styles/tokens.css` — 68 primitives and 22 semantic tokens, the semantic set remapped under
+- `src/styles/tokens.css` — 72 primitives and 30 semantic tokens, the semantic set remapped under
   `@media (prefers-color-scheme: dark)`. Components reference semantic tokens only; no raw colors
   or lengths anywhere in components or `global.css`.
 - `src/layouts/BaseLayout.astro` — wraps every page, the only importer of `global.css`.

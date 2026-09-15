@@ -1,0 +1,83 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { assertUniqueExhibitIds, exhibitAnchorId } from '../../lib/workshop';
+import { EXHIBITS } from '../../lib/workshop-registry';
+
+// A duplicate id would emit duplicate DOM ids; fail the build instead.
+assertUniqueExhibitIds(EXHIBITS);
+---
+
+<BaseLayout
+  title="Workshop"
+  description="A quiet corner of Seth Jones’s site for small things still under construction."
+  noindex
+>
+  <h1>Workshop</h1>
+  <p>The workshop is where I keep the small things I’m building — the ones too unfinished to be projects and too alive to throw away.</p>
+  {
+    EXHIBITS.length === 0 ? (
+      <div class="workshop-note">
+        <p>There’s nothing on the bench right now. I built the room first, on purpose: it’s easier to finish a small thing when it already has somewhere to sit.</p>
+        <p>Whatever lands here next will be little, self-contained, and probably not done. That’s the point of a bench.</p>
+        <p class="workshop-note__signature">— Seth</p>
+      </div>
+    ) : (
+      <ol class="exhibit-list">
+        {EXHIBITS.map((exhibit) => {
+          const Exhibit = exhibit.component;
+          return (
+            <li class="exhibit" id={exhibitAnchorId(exhibit.id)}>
+              <h2>{exhibit.title}</h2>
+              <p class="exhibit__blurb">{exhibit.blurb}</p>
+              <div class="exhibit__stage">
+                <Exhibit />
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    )
+  }
+</BaseLayout>
+
+<style>
+  /* The note and an exhibit are the same card treatment as .project-card, so
+     the hidden room does not look like a different site. */
+  .workshop-note,
+  .exhibit {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    background: var(--color-surface);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .workshop-note__signature,
+  .exhibit__blurb {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .exhibit-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  /* The global h2 size is tuned for a section heading, not a card title. */
+  .exhibit h2 {
+    font-size: var(--text-lg);
+  }
+
+  /* A rule between the description and the thing itself, so an exhibit's own
+     styles start against a visible edge rather than running into the blurb. */
+  .exhibit__stage {
+    border-block-start: var(--border-thin) solid var(--color-border);
+    padding-block-start: var(--space-sm);
+  }
+</style>
