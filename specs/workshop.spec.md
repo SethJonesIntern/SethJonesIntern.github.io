@@ -272,7 +272,7 @@ check` and loading the page — this is presentation, and per `CLAUDE.md` adjudi
 | 26 | `dist/workshop/index.html` `<title>` | `Workshop · Seth Jones` | separator is space + U+00B7 + space |
 | 27 | `dist/workshop/index.html` body | exactly one `<h1>` whose text is `Workshop`; no `<h2>` | nothing on the bench |
 | 28 | `dist/workshop/index.html` | contains one `div.workshop-note` holding three `<p>`, the last `p.workshop-note__signature` with text `— Seth`; contains no `ol.exhibit-list` and no `li.exhibit` | empty state is a note, not a placeholder |
-| 29 | `dist/workshop/index.html` | contains no `<script` and no `href="/workshop/"` outside its own `<link rel="icon">`/nav markup — i.e. the nav renders the seven `NAV_ITEMS` links and no eighth | not linked, no client JS |
+| 29 | `dist/workshop/index.html` | contains no `<script` and no `href="/workshop/"` outside its own `<link rel="icon">`/nav markup — i.e. the nav renders the `NAV_ITEMS` links and no extra one | not linked, no client JS |
 | 30 | grep `workshop` across `dist/**/*.html` other than `dist/workshop/` | no match | reachable only by typing the URL |
 | 31 | `dist/workshop/index.html` nav | no `.site-nav__link` carries `is-active` or `aria-current` | `/workshop/` matches no `NAV_ITEMS` href, including `/` |
 | 32 | `dist/rss.xml` | contains no `/workshop/` link | feed is blog-only and stays so |
@@ -342,7 +342,9 @@ check` and loading the page — this is presentation, and per `CLAUDE.md` adjudi
 10. Every colour, space, size, radius, border and shadow value in the CSS this feature adds is a
     `var(--…)` reference to an existing semantic token. No literal, no new token, no `tokens.css` or
     `global.css` edit.
-11. `/workshop/` has no inbound link anywhere in `dist/`, and `NAV_ITEMS` still has seven entries.
+11. `/workshop/` has no inbound link anywhere in `dist/`, and `NAV_ITEMS` contains no entry for it.
+    The nav's length is owned by whichever spec last added a page — it is eight since
+    `specs/reading.spec.md` — so this invariant counts `/workshop/` entries, not nav entries.
 
 ## Non-goals
 

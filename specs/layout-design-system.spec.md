@@ -97,8 +97,9 @@ Notes:
   issues add the pages; do not create placeholder pages for them and do not add `rel="nofollow"`
   or `aria-disabled`.
 - `FOOTER_LINKS` ships empty. Do not invent URLs (see Open questions).
-- `NAV_ITEMS` stays at seven entries. `/workshop/` (`specs/workshop.spec.md`) is deliberately
-  absent from it and is linked from nowhere; that is not an omission to correct.
+- `NAV_ITEMS` has eight entries, `/reading/` having been added between Blog and Contact by
+  `specs/reading.spec.md`. Contact stays last. `/workshop/` (`specs/workshop.spec.md`) is
+  deliberately absent from it and is linked from nowhere; that is not an omission to correct.
 
 ### `src/layouts/BaseLayout.astro`
 
@@ -406,12 +407,12 @@ colour. Light values live in `:root`; dark values live in the dark block.
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* the 22 semantic tokens above, re-declared with their dark values */
+    /* the 30 semantic tokens above, re-declared with their dark values */
   }
 }
 ```
 
-Only the 22 semantic tokens appear inside the dark block. Re-declaring the semantic *mapping* in
+Only the 30 semantic tokens appear inside the dark block. Re-declaring the semantic *mapping* in
 that one media block is required and is not a violation of "tokens defined once" — the primitive
 values and the token names each exist in exactly one place. There is no `data-theme` attribute, no
 theme toggle, and no JavaScript colour-scheme handling in this issue.
@@ -515,7 +516,7 @@ says "raw"; Astro HTML-escapes interpolated values, so raw bytes may contain ent
 | 27 | built output | no `<script>` element in any emitted HTML, and `dist/` contains no `.js` asset | zero client JS |
 | 28 | built output | `dist/index.html` has exactly one stylesheet path — a single `<link rel="stylesheet">` and no `<style>` element — and no element carries an inline `style=` attribute; following that `href` (an emitted file under `dist/_astro/*.css`) yields a stylesheet whose text contains the `--color-` token declarations, e.g. `--color-bg:` | the bundle is ~7.3 kB, above Astro's inline threshold, so it is emitted as a linked stylesheet and `dist/index.html` itself contains **zero** occurrences of `--color-`. Do not assert `--color-` against the HTML; resolve the link and assert against the CSS file |
 | 29 | `src/pages/index.astro` source | imports `../layouts/BaseLayout.astro` and its root element is `<BaseLayout>` | "applied by every page" — currently one page |
-| 30 | `src/styles/tokens.css` source | every token name listed in Public API appears as a declaration; the 22 semantic names appear exactly twice (light `:root`, dark media block) and every primitive name appears exactly once as a declaration | grep-level check; the Layer 1 and Layer 2 tables above are the complete enumeration, including `--color-transparent` (primitive, once) and `--color-mark-plate` (semantic, twice) |
+| 30 | `src/styles/tokens.css` source | every token name listed in Public API appears as a declaration; the 30 semantic names appear exactly twice (light `:root`, dark media block) and every primitive name appears exactly once as a declaration | grep-level check; the Layer 1 and Layer 2 tables above are the complete enumeration, including `--color-transparent` (primitive, once), `--color-mark-plate` (semantic, twice), the three `--shelf-spine-*` geometry primitives (once each) and the eight `--color-spine-*` tokens (semantic, twice each) from `specs/reading.spec.md` |
 | 31 | any `src/components/*.astro`, `src/layouts/*.astro`, `src/pages/*.astro` source | no hex colour literal (`/#[0-9a-fA-F]{3,8}\b/`), no `rgb(`/`hsl(`, no `px` length except `1px`/`2px` borders already tokenised — i.e. colour and spacing only via `var(--…)` | tokens used, not duplicated. The `<Image>` intrinsic-size props in `SiteHeader.astro` (`width={24}`, and the `width`/`height` attributes `astro:assets` emits from it) are markup required by the image pipeline, not style values, and are exempt |
 | 32 | `src/styles/global.css` source | contains no hex colour literal and no `rgb(`/`rgba(`/`hsl(` — all colour via `var(--color-…)` | the only raw `rgba()` in the project is inside the two shadow tokens in `tokens.css` |
 | 33 | viewport 400px wide | `--layout-gutter` computes to `18px` (`0.5rem + 2.5vw` = 8px + 10px, inside the clamp range), leaving a 364px content box; nav wraps to multiple rows; `document.documentElement.scrollWidth <= 400` | no horizontal scroll |

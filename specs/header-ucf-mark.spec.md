@@ -150,7 +150,7 @@ applied to the mark itself — no opacity shift, no filter; the existing brand-t
    as a personal affiliation mark is the user's call; flag before publishing, do not block the build.
 2. **Closed — the token enumeration was extended, not left a subset.**
    `specs/layout-design-system.spec.md` now lists `--color-transparent` in its Layer 1 primitives
-   table and `--color-mark-plate` in its Layer 2 semantic table, states 22 semantic tokens in the
+   table and `--color-mark-plate` in its Layer 2 semantic table, states 30 semantic tokens in the
    dark-scheme mechanism, and its Behavior #30 names both additions (primitive declared once,
    semantic declared twice). The "semantic names appear exactly twice, primitives exactly once"
    rule holds for both, and that spec's enumeration is complete against `src/styles/tokens.css`.
