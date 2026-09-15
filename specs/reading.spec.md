@@ -21,7 +21,9 @@ disabled. Because a bookshelf wants spines of varying colour and components may 
 colour, the palette is added to `src/styles/tokens.css` as eight new Layer 2 semantic tokens
 remapped under `@media (prefers-color-scheme: dark)`, exactly as the UCF-mark work added
 `--color-mark-plate`. The page joins the nav between Blog and Contact so Contact stays last. No
-client-side JavaScript, no new dependency, no content collection.
+client-side JavaScript of this issue's own, no new dependency, no content collection. (Issue #18,
+`specs/workshop-unlock.spec.md`, later added one pointer-click-only script to this page for the
+workshop unlock; it changes neither the markup nor the accessibility of the shelf.)
 
 ## Public API
 
@@ -369,6 +371,11 @@ changed neither number, nor the eight-entry nav.
 
 Flat route, so the default `directory` build format emits `dist/reading/index.html` at `/reading/`.
 
+This contract is the page as it stands after issue #18. The `workshop-unlock` import, the
+`assertUnlockSequence` call and the `<script>` were added by `specs/workshop-unlock.spec.md`, which
+is the contract of record for them. Everything else, including all of the shelf's markup and
+accessibility semantics, is #16's and is unchanged.
+
 Frontmatter:
 
 ```astro
@@ -383,9 +390,13 @@ import {
   spineClass,
 } from '../lib/reading';
 import { READING_LIST } from '../lib/reading-books';
+import { UNLOCK_SEQUENCE, assertUnlockSequence } from '../lib/workshop-unlock';
 
 // A duplicate id would emit duplicate DOM ids; fail the build instead.
 assertUniqueBookIds(READING_LIST);
+
+// A key book renamed or removed would make the combination unreachable; fail the build.
+assertUnlockSequence(UNLOCK_SEQUENCE, READING_LIST.map((book) => book.id));
 
 const shelves = groupByShelf(READING_LIST);
 
@@ -422,6 +433,9 @@ Body (no `width` attribute — the column stays `'prose'`):
       </section>
     ))
   }
+  <script>
+    /* the workshop unlock — contracted by specs/workshop-unlock.spec.md */
+  </script>
 </BaseLayout>
 ```
 
@@ -433,8 +447,11 @@ Notes the coder must honour:
   border. The visible text *is* the accessible text.
 - `data-book-id` and the `book-<id>` DOM id are the book's stable identity: they make a single book
   addressable (a permalink such as `/reading/#book-the-last-olympian`, or a later per-book
-  annotation) without renaming anything. They are not read by any script in this issue.
-- No `<script>`, no `on*` attribute, no `client:*` directive.
+  annotation) without renaming anything. The only script that reads `data-book-id` is the
+  pointer-click-only unlock of `specs/workshop-unlock.spec.md`, and it reads it identically for
+  every spine.
+- The page's one `<script>` is #18's unlock, a plain processed `<script>`. No other `<script>`, no
+  `on*` attribute, no `client:*` directive.
 
 Scoped `<style>` in this page only, exactly these rules (every colour a semantic token, every length
 a primitive token or a `calc()` over one):
@@ -667,7 +684,7 @@ verified by `npm run build`, `npm run check` and loading the page — this is pr
 | 67 | hover over each of the 18 spines, no reduced-motion preference | every one computes `transform: matrix(1, 0, 0, 1, 0, -8)` (translateY(-8px), i.e. `--space-2xs`) with `transition-duration: 0.2s` and `transition-timing-function: cubic-bezier(0.2, 0, 0.2, 1)` — identical for all eighteen, and no neighbouring spine moves | one rule, no per-spine variation |
 | 68 | `prefers-reduced-motion: reduce`, hover a spine | computed `transform` is `none` and `transition` is `none`; the `box-shadow` change still applies | motion honoured, affordance kept |
 | 69 | viewport 400px, 768px and 1280px | `document.documentElement.scrollWidth <= viewport width` at each; the fiction shelf wraps to at least two rows at all three; within every row, all spines share one bottom edge (their `getBoundingClientRect().bottom` values are equal) and their thick bottom borders meet to form a continuous board line | multi-row is the normal case; no horizontal scroll ever |
-| 70 | `dist/reading/index.html` | contains no `<script`, no `on[a-z]+=` handler attribute and no `style=` attribute; the page renders identically with JavaScript disabled | CSS-only feature |
+| 70 | `dist/reading/index.html` | contains no `on[a-z]+=` handler attribute and no `style=` attribute; every `<script>` element is an Astro-processed `type="module"` script from `SiteNav.astro` or this page (`specs/workshop-unlock.spec.md`); the page renders identically with JavaScript disabled | the presentation is CSS-only; the scripts change nothing visible (amended; was "no `<script`") |
 | 71 | `dist/rss.xml` | contains no `/reading/` link | the feed stays blog-only |
 
 ## Errors
@@ -692,6 +709,7 @@ verified by `npm run build`, `npm run check` and loading the page — this is pr
 | a `READING_LIST` entry with a duplicate `id` | `npm run build` exits non-zero with the `assertUniqueBookIds` `TypeError`, before any markup is emitted | duplicate DOM ids can never ship. Review-only |
 | a `READING_LIST` entry whose `spine` equals that of the entry before it on the same shelf | `npm run build` exits non-zero with the `assertVariedSpines` `TypeError` | the fix is to pick another variant; the check runs per shelf group, so the last technical and first fiction book may share a variant. Review-only |
 | a `READING_LIST` entry missing `id`/`title`/`author`/`shelf`/`spine`, or with a `shelf`/`spine` outside its union, or carrying a stray `volumes` property | `astro check` diagnostic, `npm run check` exits 1 | assert on exit code and the offending property name, not on TypeScript's wording. Review-only |
+| removing or renaming the `id` of a workshop key book (`a-clash-of-kings`, `harry-potter-prisoner-of-azkaban`) | `npm run build` exits non-zero with the `assertUnlockSequence` `TypeError` | contracted by `specs/workshop-unlock.spec.md`. Review-only |
 
 `assertUniqueBookIds` does **not** validate id syntax — only uniqueness; syntax is enforced by
 `bookAnchorId` during render. `assertVariedSpines` validates neither ids nor shelf membership — it
@@ -725,7 +743,7 @@ the build, which is the point.
 | viewport minimum | 400px is the contracted floor (Behavior 69). Below 320px undefined, do not test. |
 | viewport maximum | ≥1280px: spines cap at `--shelf-spine-height-max`'s 16rem ceiling, the column stays `.prose`, and the fiction shelf still wraps. Test scrollWidth and row count only. |
 | `prefers-reduced-motion: reduce` | Behavior 68 — `transform: none`, `transition: none`, shadow change retained. Test. |
-| JavaScript disabled | Fully rendered and fully readable; this feature ships no script. Behavior 70 is the grep. Test. |
+| JavaScript disabled | Fully rendered and fully readable, identical to JavaScript enabled; the shelf is simply inert (the unlock of `specs/workshop-unlock.spec.md` does not run). Behavior 70. Test. |
 | forced-colors mode, print stylesheet, RTL (`dir="rtl"`) | Undefined, do not test. The site is `lang="en"` with no RTL support and no print sheet. |
 | touch devices with no hover | The lift simply never fires; nothing depends on it. Undefined, do not test. |
 
@@ -766,8 +784,11 @@ the build, which is the point.
 12. The hover treatment is declared once, on `.shelf__book`, with no per-variant, per-shelf, or
     per-index override, delay, or stagger — so the motion is identical for all eighteen spines, and
     lifting one never moves another.
-13. The site still ships zero client-side JavaScript: no `<script>` on this page, no `on*`
-    attribute, no hydration directive, no new dependency.
+13. The shelf's presentation needs no JavaScript: the page renders identically with scripts
+    disabled, has no `on*` attribute, no hydration directive, and no new dependency. Its only
+    `<script>` is the pointer-click-only unlock contracted by `specs/workshop-unlock.spec.md`, which
+    changes nothing visible and nothing in the accessibility tree. (Amended by #18; #16 shipped no
+    script.)
 14. The visual rotation changes no semantics: DOM order is reading order, the shelf is a `<ul>` of
     `<li>` with `role="list"`, each `<section>` is labelled by its own `<h2>`, and no element on the
     page carries `aria-hidden`, `role="presentation"`, `tabindex`, or a visually-hidden duplicate of
@@ -782,9 +803,11 @@ the build, which is the point.
 
 ## Non-goals
 
-- **Anything interactive.** No click handler, no keyboard shortcut, no `localStorage`, no
-  `cursor: pointer`, no focus styling, no link out of a spine. The spines are decoration around
-  text; the only dynamic behaviour in this issue is a CSS hover lift.
+- **Anything interactive, in this issue.** No click handler, no keyboard shortcut, no `localStorage`,
+  no `cursor: pointer`, no focus styling, no link out of a spine. The spines are decoration around
+  text; the only dynamic behaviour #16 ships is a CSS hover lift. The hidden pointer-click
+  combination that unlocks the workshop was added later by `specs/workshop-unlock.spec.md`, which
+  owns it and keeps every item on this list true for what a visitor can see or focus.
 - **Any series machinery.** No `volumes` range, no `series` field, no `seriesOrder`, no grouping of
   a series under a sub-heading, no "Books 1–7" label, no collapsing of the seven Harry Potter
   spines back into one. One entry is one book, and the title is the whole identity.
@@ -863,3 +886,11 @@ Settled — recorded here so the decisions are not relitigated:
     shelf touch. A thick `border-bottom` per spine joins into a continuous board line under every
     wrapped row, which a single border on the `<ul>` could not do once the shelf wraps — and
     wrapping is now the normal case, not the phone case.
+12. **Closed — amended for issue #18 (`specs/workshop-unlock.spec.md`), JavaScript only.** Changed
+    here: one sentence of Purpose, the page contract (the frontmatter import and assertion, the
+    `<script>`, and the `data-book-id` and no-script notes), Behavior 70, one Errors row naming the
+    key books `a-clash-of-kings` and `harry-potter-prisoner-of-azkaban`, the "JavaScript disabled"
+    boundary, Invariant 13, and the "Anything interactive" non-goal. The shelf's accessibility
+    contract — `role="list"`, no `aria-hidden`, no visually-hidden duplicate, Behavior 56 and 58,
+    Invariant 14 — is unchanged: Seth decided the shelf stays a real list, and the unlock is
+    pointer-click only.
