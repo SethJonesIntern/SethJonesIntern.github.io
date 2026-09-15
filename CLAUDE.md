@@ -27,10 +27,11 @@ Work is tracked as GitHub issues. `gh issue list` shows what remains; each close
 verification record. Use `/spec-harness:epic` for a feature area, `/spec-harness:blind-tdd` for a
 single change.
 
-`adjudication` is set to `off` in `.spec-harness.json`. Most of this site is presentation, where
-failure modes are visible — verify by building and loading the page rather than launching the
-adjudicator. Turn it to `light` or `full` for the issues with real logic: the projects content
-collection, the GitHub API showcase, and the blog's slugs, tags and feed.
+`adjudication` is `off` in `.spec-harness.json`, so the harness reviews with `/code-review` after
+the build, typecheck and existing tests pass. Most of this site is presentation, where failure
+modes are visible. Turn it to `light` or `full` only for logic whose failure would not show in the
+built page: the projects content collection, the GitHub API showcase, and the blog's slugs, tags
+and feed.
 
 Scaffolding and dependency installation are main-thread work. The planner, coder and tester have no
 `Bash`, so they cannot run `npm`, `astro add`, or any generator.
